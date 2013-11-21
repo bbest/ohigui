@@ -1,0 +1,369 @@
+02 Jul 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * global_2012_nature_data.zip, global_2012_nature_scenario.zip, ohi.pdf,
+      ohi_0.9.12.tar.gz, ohi_latest.tar.gz, ohi_tbx_install.R: updated
+      ohi_tbx_install.R to use options('ddownload.file.method'='curl') to get
+      around https error
+
+24 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * config.R, functions.R, ohi.R, server.R, ui.R: TBX Layers -> Data tab,
+      beginning of create.report functions with knitr
+
+20 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * ohi_tbx_install.R, ui_0.R: working ohi_tbx_install.R
+
+    * DESCRIPTION, ohi.pdf, ohi_0.9.12.tar.gz, ohi_latest.tar.gz: updated R pkg
+      with ggplot histogram and Report dummy UI controls
+
+19 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * NAMESPACE, config.R, global.R, server.R, ui.R: TBX now working with
+      ~user/ohi_tbx paths
+
+18 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * NAMESPACE, ohi.pdf, ohi_0.9.12.tar.gz: added config.check and
+      config.summary to NAMESPACE
+
+    * calc_pressures.R, global.R, server.R: missing aster so trying library(ohi)
+      in global.R
+
+    * DESCRIPTION, calc_pressures.R, ohi.pdf, ohi_0.9.12.tar.gz: R pkg working
+      again
+
+    * ohi.R, server.R: commenting out extra library() and require()
+
+    * aster.Rd: TBX R pkg aster man
+
+    * NAMESPACE, calc_pressures.R, layers_navigation.Rd, ohi.R, server.R: TBX R
+      pkg aster man
+
+    * ohi.pdf, ohi_0.9.12.tar.gz: TBX R pkg seem to be able to add scripts into
+      R folder
+
+    * DESCRIPTION, aggregate_to_regions.Rd, global.R, layers_data.csv,
+      layers_update.R, ohi.R, server.R, ui.R: TBX R pkg dropped Collate field
+      from DESCRIPTION to try adding calc_pressures.R to R folder
+
+    * ohi.R, ohi.pdf, ohi_0.9.12.tar.gz: updated R pkg
+
+17 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.R: removing import on sqldf bc of version
+      issue on neptune with packaging
+
+    * aggregate_to_regions.Rd, layers_navigation.Rd, layers_update.R, ohi.R: TBX
+      R man
+
+    * DESCRIPTION, NAMESPACE: TBX R pkg added imports
+
+    * NAMESPACE, layers_navigation.Rd: layers_navigation.Rd fixed
+
+    * NAMESPACE, global.R, layers_navigation.Rd, layers_navigation.csv,
+      layers_update.R, layers_update.csv, ohi.R, server.R, ui.R: adding
+      layers_navigation.Rd
+
+    * ._.DS_Store, ._glyphicons-halflings-white.png, ._glyphicons-halflings.png,
+      ._jquery.js, ._jquery.min.js, ._layers.png, ._leaflet-src.js,
+      ._marker-icon.png, ._marker-shadow.png, ._run.sh, and others: TBX svn
+      cleanup of files with svn st | grep "^\!" | awk "{print \$2}" | xargs svn
+      rm $1
+
+    * DESCRIPTION, config.R, global_2012_nature_data.zip,
+      global_2012_nature_scenario.zip, goals.csv, layers_navigation.csv,
+      layers_update.R, layers_update.csv, ohi.R, pressures_matrix.csv, and
+      others: TBX app working with locally loaded aster
+
+    * aster.r, load_colors.r, load_data.r, ohi.pdf, ohi_0.9.12.tar.gz: pkg with
+      *.csv and without figure scripts
+
+    * aster.r, goal_descriptions.csv, load_colors.r, load_data.r,
+      subgoal_descriptions.csv: moving around *.R into R and *.csv into data
+
+    * ohi.pdf, ohi_0.9.12.tar.gz: R pkg with inst/scripts
+
+    * : TBX rm shiny_app/www/dist
+
+    * aster.r, global.R, goal_descriptions.csv, load_colors.r, load_data.r,
+      server.R, subgoal_descriptions.csv: TBX hack of adding inst/scripts
+
+    * ohi.pdf, ohi_0.9.12.tar.gz: ohi_0.9.12.tar.gz smaller now with zip gone
+      and launchApp documented
+
+    * launchApp.Rd: TBX adding launchApp.Rd
+
+    * launchApp.Rd: TBX adding launchApp.Rd
+
+16 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * ohi.R, ohi_0.9.12.tar.gz: TBX update
+
+15 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, global.R, layers_data.csv, layers_navigation.csv,
+      ohi.R, ohi.pdf, server.R, ui.R: TBX with alternate scenario selection
+
+    * goal_weights.csv, goals.csv, ohi.R, pressures_component_aggregation.csv,
+      pressures_components.csv, resilience_component_aggregation.csv,
+      resilience_components.csv: TBX moving layers
+
+    * ohi.R: TBX working shiny_app in R pkg
+
+    * global.R, ui.R: TBX move of src/toolbox/code/shiny to
+      src/R/ohi/inst/shiny_app
+
+    * : TBX move of src/toolbox/code/shiny to src/R/ohi/inst/shiny_app
+
+    * DESCRIPTION, NAMESPACE, ohi.R: TBX funk still for move of
+      src/toolbox/code/shiny to src/R/ohi/inst/shiny_app
+
+14 Jun 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * OHI_Toolbox_Manual DH0116.docx, OHI_Toolbox_Manual_2013-01-15.docx,
+      OHI_Toolbox_Manual_2013-01-25.docx, OHI_Toolbox_Manual_2013-05-20.docx,
+      calc_ohi.R, calc_pressures_notes.txt, digest.R, equations.csv,
+      functions.R, functions_nature2012.R, and others: TBX: updating toolbox
+      before moving shiny app into R package
+
+25 May 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * calc_pressures.R, calc_resilience.R, ohi.R, report_01-compare.Rmd,
+      report_01-compare.md, resilience_matrix.csv: TBX R: calc_resilience.R now
+      working for all goals, per issue #70 and issue #26
+
+23 May 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * OHI_Toolbox_Manual.docx, calc_pressures.R, calc_resilience.R,
+      goal_layers.csv, ohi.R, ohi.nature2012.RData, ohi.pdf, ohi_0.9.11.tar.gz,
+      prep_pressures_layers.R, prep_regions.Rmd, and others: resilience working
+      for goals without categories, per issue #26
+
+14 May 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.R, ohi.model.pressures.matrix.Rd,
+      ohi.nature2012.RData, ohi.pdf, ohi.tbd.Rd: updated NAMESPACES, DESCRIPTION
+      and .onAttach() to work with R 3.0
+
+    * ohi.R: updated ohi.R: renamed sections and functions to work with RStudio,
+      added md.table() and markdown.css in style section for better table
+      rendering from *.Rmd files with knitr (issue #26)
+
+22 Apr 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * Habitat_Scenarios_Abs.xlsx, Habitat_Scenarios_Ratio.xlsx,
+      MPA_Scenarios_Abs.xlsx, MPA_Scenarios_Ratio.xlsx, README_REPORT.html,
+      global_resilience_region_mpa_percent_coastal.csv,
+      global_resilience_region_mpa_percent_eez.csv, model.sql, ohi.R,
+      ohi_global_aster.zip, and others: TBX Pressures: still having trouble
+      comparing various inputs, per issue #26
+
+15 Feb 2013:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.R, ohi.model.resilience.Rd, ohi.pdf,
+      ohi_0.9.10.tar.gz: refs #70
+
+14 Feb 2013:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * export.sh, ohi.model.pressures.matrix.Rd, ohi.pdf, ohi_0.9.9.tar.gz: fixed
+      doc problem
+
+    * DESCRIPTION, NAMESPACE, export.sh, ohi.R, ohi.model.resilience.Rd,
+      ohi.nature2012.RData, ohi.nature2012.Rd, ohi.pdf, ohi_0.9.9.tar.gz,
+      setup.R, setup.sh: added layers data to ohi.nature2012 (refs #78), added
+      ohi.model.resilience.matrix (refs #71) and revised ohi.model.resilience
+      implementation (refs #70)
+
+12 Feb 2013:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.pdf, ohi_0.9.8.tar.gz, setup.sh: use src/model/global2012 for
+      ohi.nature2012
+
+    * NAMESPACE, ohi.pdf, ohi_0.9.8.tar.gz: fixed namespace for
+      ohi.model.pressures.matrix
+
+    * DESCRIPTION, ohi.R, ohi.file.Rd, ohi.model.pressures.Rd,
+      ohi.model.pressures.matrix.Rd, ohi.pdf, ohi_0.9.8.tar.gz: bug fixes for
+      ohi.model.pressures (refs #26) and new ohi.model.pressures.matrix function
+      (refs #71)
+
+11 Feb 2013:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.R, ohi.model.pressures.Rd, ohi.pdf, ohi_0.9.7.tar.gz: fixed bug with
+      singleton pressure layers within a pressures category (refs #26)
+
+11 Feb 2013:  Ben Best <bbest@nceas.ucsb.edu>
+
+    * ohi.model.pressures.Rd, ohi.pdf: pressures calc in R ohi package by Darren
+
+11 Feb 2013:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.R, ohi.model.pressures.Rd, ohi.pdf, ohi_0.9.7.tar.gz: additional
+      assertions for ohi.model.pressures and updated documentation example (refs
+      #26)
+
+    * DESCRIPTION, ohi.R, ohi.model.pressures.Rd, ohi.pdf, ohi_0.9.6.tar.gz,
+      ohi_0.9.7.tar.gz: bug fix for singular pressures categories, and major
+      documentation additions (refs #26)
+
+08 Feb 2013:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.R, ohi.model.resilience.Rd, ohi.pdf, ohi_0.9.6.tar.gz: refs #70
+
+    * ohi.R, ohi.model.resilience.Rd, ohi.pdf, ohi_0.9.6.tar.gz: refs #70
+
+    * ohi.model.pressures.Rd, ohi.pdf, ohi_0.9.6.tar.gz: refs #70
+
+    * ohi.model.resilience.Rd, ohi.pdf, ohi_0.9.6.tar.gz: refs #70
+
+    * ohi.model.resilience.Rd, ohi.pdf, ohi_0.9.6.tar.gz: refs #70
+
+    * DESCRIPTION, ohi.R, ohi.model.resilience.Rd, ohi.pdf, ohi_0.9.6.tar.gz:
+      refs #70
+
+04 Jan 2013:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, ohi.R, ohi.pdf, ohi.vars.Rd, ohi_0.9.5.tar.gz: added xF to
+      ohi.model.labels
+
+14 Dec 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * export.sh, ohi.model.pressures.Rd, ohi.pdf, ohi_0.9.4.tar.gz: updated
+      documentation to include PDF (refs #26)
+
+    * ohi.model.pressures.Rd, ohi_0.9.4.tar.gz: updated doc (refs #26)
+
+    * ohi.R, ohi_0.9.4.tar.gz: calculate social pressures (refs #26)
+
+10 Dec 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.R, ohi.model.pressures.Rd, ohi_0.9.4.tar.gz:
+      added core-level pressures calculations (refs #26)
+
+19 Nov 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, ohi.R, ohi.nature2012.RData, ohi_0.9.3.tar.gz: update to
+      global nature2012 Figure1 ordering for goals TR in wrong place (refs #40)
+
+12 Sep 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.nature2012.Rd, ohi_0.9.2.tar.gz: updated citation
+
+    * DESCRIPTION, ohi.R, ohi.file.Rd, ohi.nature2012.Rd, ohi_0.9.2.tar.gz:
+      updated citation. added ohi.savetxt.
+
+03 Jul 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.R, ohi.file.Rd, ohi.nature2012.RData,
+      ohi.vars.Rd: added ohi.save.results and ohi.save.xTpr
+
+05 Jun 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+02 Jun 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+23 May 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.nature2012.RData, ohi_0.9.tar.gz, setup.R: fixed missing valueset
+
+    * DESCRIPTION, LICENSE, NAMESPACE, ohi.R, ohi.extra.R, ohi.file.R,
+      ohi.goal.R, ohi.main.R, ohi.nature2012.RData, ohi.scale.R, ohi_0.9.tar.gz:
+      cleanup
+
+10 May 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+08 May 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.file.R, ohi.file.Rd, ohi.main.R,
+      ohi_0.8.2.tar.gz: added ohi.loadbin and ohi.savebin
+
+07 May 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, allregions.Rd, ohi.Rd, ohi.extra.R, ohi.file.R,
+      ohi.file.Rd, ohi.goal.R, ohi.main.R, ohi.model.goal.Rd, and others: added
+      more doc
+
+30 Apr 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+20 Apr 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+19 Apr 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.file.R, ohi_0.6.tar.gz: ohi.load returns name of object, invisibly
+
+    * global.results.RData, ohi.nature2012.RData, ohi_0.6.tar.gz, setup.R: added
+      nature2012 data
+
+    * DESCRIPTION, export.sh, global.results.RData, ohi.main.R, ohi_0.6.tar.gz,
+      setup.R, setup.sh: added global results to ohi pkg v0.6
+
+    * DESCRIPTION, ohi.main.R: fixed score.clamp to preserve class of 1st arg
+
+04 Apr 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+03 Apr 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.main.R, ohi_0.5.9.tar.gz: added
+      ohi.subgoal.parent
+
+    * DESCRIPTION, ohi.main.R, ohi_0.5.8.tar.gz: updated weighting schemes
+
+    * ohi.file.R, ohi_0.5.7.tar.gz: removed ambiguity about save/load order when
+      multiple methods provided, fixed problems with non-invisible return values
+
+    * DESCRIPTION, NAMESPACE, ohi.main.R: added score.rescale, ohi.model.labels,
+      and allregions(scope=eez.noATA)
+
+02 Apr 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+22 Mar 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi_0.5.4.tar.gz: fixed digit truncation in ohi.write.csv
+
+    * DESCRIPTION, ohi.file.R, ohi.main.R, ohi_0.5.4.tar.gz: fixed digit
+      truncation in ohi.write.csv
+
+07 Mar 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.file.R, ohi_0.5.3.tar.gz: fixed return values for ohi.load
+
+    * ohi.file.R, ohi_0.5.3.tar.gz: made invisible returns for ohi.load and
+      ohi.save
+
+06 Mar 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi_0.5.3.tar.gz: rebuild for 0.5.3
+
+    * DESCRIPTION, ohi.main.R: changed allregions to left join, not full outer
+      join
+
+    * ohi_0.5.2.tar.gz: rebuild for 0.5.2
+
+    * DESCRIPTION, ohi.main.R, ohi_0.5.2.tar.gz, setup.sh: added scope parameter
+      to allregions function
+
+    * DESCRIPTION, ohi.file.R, ohi.main.R, ohi_0.5.1.tar.gz: changed return
+      value of ohi.load to boolean
+
+02 Mar 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * DESCRIPTION, NAMESPACE, ohi.file.R, ohi.main.R, ohi_0.5.tar.gz, setup.sh:
+      added ohi.load and ohi.save
+
+23 Feb 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.Rd, ohi_0.4.tar.gz: updated doc
+
+    * ohi.Rd, ohi_0.4.tar.gz, setup.R: updated doc
+
+    * ohi.file.R, ohi_0.4.tar.gz, setup.sh, test.file.R: fixed runtime tests
+
+21 Feb 2012:  Darren Hardy <hardy@nceas.ucsb.edu>
+
+    * ohi.file.R, ohi.goal.R, ohi.main.R, ohi_0.4.tar.gz: reformatted
+
+    * ohi.main.R: remove assertion
+
+    * 00Index.html, AnIndex, DESCRIPTION, NAMESPACE, R.css, Rd.rds, aliases.rds,
+      hsearch.rds, links.rds, nsInfo.rds, and others: packaged
+

@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/code/projects/ohi/!svn/ver/6287/trunk/src/R/ohi/data
+END
+goal_descriptions.csv
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/code/projects/ohi/!svn/ver/6222/trunk/src/R/ohi/data/goal_descriptions.csv
+END
+datalist
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/code/projects/ohi/!svn/ver/4614/trunk/src/R/ohi/data/datalist
+END
+ohi.nature2012.RData
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/code/projects/ohi/!svn/ver/6287/trunk/src/R/ohi/data/ohi.nature2012.RData
+END
+subgoal_descriptions.csv
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/code/projects/ohi/!svn/ver/6222/trunk/src/R/ohi/data/subgoal_descriptions.csv
+END

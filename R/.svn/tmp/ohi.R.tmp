@@ -1,0 +1,1628 @@
+#
+# ohi.R
+# 
+# Author: Ben Best <bbest@nceas.ucsb.edu>, Darren Hardy <hardy@nceas.ucsb.edu>
+# Created: 2011-02-23
+# $Id$
+# 
+# Copyright (c) 2011-2013 NCEAS (UCSB). All rights reserved.
+#
+# TODO: check as package to drop inst path in inst/shiny_app/server.R:
+#       source(system.file('inst/scripts/load_data.r',package='ohi'), local=T, echo=F)
+
+# DEVTOOLS (https://github.com/hadley/devtools/wiki):
+#   library(devtools); la = function() {load_all('/usr/local/ohi/src/R/ohi'); launchApp('~/ohi_tbx/scenarios/global_2012_nature/conf/config.R')}; la()
+#   document('/usr/local/ohi/src/R/ohi'); dev_help('ohi.model.pressures.matrix')
+# TODO:
+#   update setup.sh -> /usr/local/ohi/sbin/svn-changelog to use NEWS style vs current ChangeLog
+#
+# library(devtools); la = function() {load_all('/usr/local/ohi/src/R/ohi')}; la()
+# R -e "install.packages('/usr/local/ohi/src/R/ohi_0.9.12.tar.gz', repos=NULL, type='source')"
+# launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
+# R -e "ohi::launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')"
+
+# options(gsubfn.engine = "R") # for sqldf
+# library(sqldf)
+# options(sqldf.driver = 'SQLite')
+# options(sqldf.verbose = F)
+#library(tools)
+
+stopifnot(getRversion() >= '2.10')
+# see DESCRIPTION and NAMESPACE files for dependencies and imports:
+#   require(reshape2)
+#   require(markdown)
+#   require(pander)
+#   require(knitr)
+#   require(shiny)
+
+# constants ---------------------------------------------------------------
+ohi.version <- package_version("0.9.12")
+ohi.DEBUG <- FALSE
+
+###
+# load the *MANUAL* order of the goals and subgoals:
+# Refs #40: TR is before LE as per Nature2012 Figure 1.
+#
+# ohi.goal.all is the list of only the goals
+ohi.goal.all <- c('FP','AO','NP','CS','CP','TR','LE','SP','CW','BD')
+# ohi.subgoal.all is the list of only the subgoals, or the goal if only 1 subgoal
+ohi.subgoal.all <- c('FIS','MAR','LIV','ECO','ICO','LSP','HAB','SPP')
+# ohi.goal.subgoal.unique is the list of only the subgoals, or the goal if only 1 subgoal
+ohi.goal.subgoal.unique <- c('FIS','MAR','AO','NP','CS','CP','TR','LIV','ECO','ICO','LSP','CW','HAB','SPP')
+# ohi.goal.subgoal.all is the cross product of all goals and subgoals
+ohi.goal.subgoal.all <- c('FIS','FP','MAR','AO','NP','CS','CP','TR','LIV','LE','ECO','ICO','SP','LSP','CW','HAB','BD','SPP')
+ohi.subgoal.parent <- c('FIS'='FP', 'MAR'='FP', 'LIV'='LE', 'ECO'='LE', 'ICO'='SP', 'LSP'='SP', 'HAB'='BD', 'SPP'='BD')
+
+# Labels
+ohi.model.keys <- c('r'='region', 'g'='goal', 'd'='dimension', 'c'='component', 'l'='layer')
+ohi.model.labels <- c('x'='Status', 't'='Trend', 'p'='Pressures', 'r'='Resilience', 'xF'='Likely Future Status')
+ohi.model.dimensions <- make.names(tolower(ohi.model.labels))
+# Refs #40: Order here is meaningless -- use alpha sort by goal/subgoal
+ohi.goal.labels <- c(
+    'AO'='Artisanal Fishing Opportunities',
+    'BD'='Biodiversity',
+    'CP'='Coastal Protection',
+    'CS'='Carbon Storage',
+    'CW'='Clean Waters',
+    'FP'='Food Provision',
+    'LE'='Coastal Livelihoods and Economies',
+    'NP'='Natural Products',
+    'SP'='Sense of Place',
+    'TR'='Tourism and Recreation',
+    'ECO'='Economies',
+    'FIS'='Fisheries',
+    'HAB'='Habitats',
+    'ICO'='Iconic Species',
+    'LIV'='Livelihoods',
+    'LSP'='Lasting Special Places',
+    'MAR'='Mariculture',
+    'SPP'='Species'
+)
+
+# schemes as list of column_name=aster_label
+ohi.valuesets <- c('unweighted'='Global',
+                   'preservationist'='Preservationist',
+                   'extractive'='Extractive',
+                   'nonextractive'='Non-extractive',
+                   'extreme'='Extractive Extreme')
+
+ohi.labels <- c(ohi.goal.labels, ohi.model.labels, ohi.valuesets)
+
+ohi.pressure.category <- list('environmental'=c('po','hd','fp','sp','cc'), 'social'=c('ss'))
+
+
+# report ------------------------------------------------------------------
+
+#opts_chunk$set(dependson='init',echo=FALSE,cache=TRUE,fig.width=8,fig.height=5)
+#options(markdown.HTML.options=c('hard_wrap','use_xhtml','smartypants')) # exclude 'base64_images'
+
+create.report = function(regions_goals.csv, regions_goals_dimensions.csv, report.out, 
+              options = c('ck_Equations'=T,'ck_Flowers'=T,'ck_Histograms'=T,
+                          'ck_Maps'=T,'ck_Paths'=T,'ck_Tables'=T)){
+  
+  options = c('ck_Equations'=T,'ck_Flowers'=T,'ck_Histograms'=T,
+              'ck_Maps'=T,'ck_Paths'=T,'ck_Tables'=T)
+  
+  # tools::file_ext() == 'html'
+  
+  f = sprintf('%s/report.%s', dir.results, c('Rmd','md','html'))
+  knitr::knit(f[1],f[2])
+  knitr::markdownToHTML(f[2], f[3]); shell.exec(f[2]); shell.exec(f[3])
+  
+  # pandoc -s --toc pressures_README_modified.md -o pressures_README_modified.html # shell.exec(f[3])
+}
+
+# # DEBUG: run report
+# config.R = '~/ohi_tbx/scenarios/global_2012_nature/conf/config.R'
+# source(config.R)
+# report.out=sprintf('%s/%s.html', dir.results, 'report')
+# opts = c('ck_Equations'=T,'ck_Flowers'=T,'ck_Histograms'=T,
+#          'ck_Maps'=T,'ck_Paths'=T,'ck_Tables'=T)
+# create.report(regions_goals.csv, regions_goals_dimensions.csv, report.out, opts)
+
+
+
+# calculation helper functions ----
+
+na.to.F = function(x){ ifelse(is.na(x), F, x)} 
+
+contrast = function(x, y, by.x, by.y=NA, on.x=NA, on.y=NA, skip.y.na=T, drop.mutual.na=T, precision=2, verbosity=1){
+  #   m = head(m)
+  #   status_model_curref_lim = dbGetQuery(pg, "SELECT * FROM global_li.status_model_curref WHERE ref_base_value <> 0 AND ref_adj_value <> 0")
+  #   contrast(x=m,                     , by.x=c('country_id','sector','metric'), on.x=c('year_cur','year_ref','base_cur'      ,'base_ref'      ,'adj_cur'      ,'adj_ref'),
+  #            y=status_model_curref_lim, by.y=c('iso3166'   ,'sector','metric'), on.y=c('cur_year','ref_year','cur_base_value','ref_base_value','cur_adj_value','ref_adj_value'),
+  #            precision=4)
+  # x = contrast(x=b, y=a, by.x=c('metric','sector','country_id','year'), by.y=c('metric','sector','iso3166','year'), on.x=c('adj_value'), skip.y.na=F)
+  # ck.LIV = contrast(s_liv, s_liv.a, by.x='region_id', by.y='id', on.x='score', on.y='status', precision=4)
+  # by.y=NA; on.x=NA; on.y=NA; skip.y.na=T; drop.mutual.na=T; precision=2; verbosity=1
+  # x=b; y=a; by.x=c('metric','sector','country_id','year'); by.y=c('metric','sector','iso3166','year'); on.x=c('adj_value'); skip.y.na=F
+  # x=s_liv; y=s_liv.a; by.x='region_id'; by.y='id'; on.x='score'; on.y='status'; precision=4
+  # x=head(b); by.x=c('metric','sector','country_id','year'); on.x=c('value','base_value','base_whence','adj_value');
+  # y=head(a); by.y=c('metric','sector','iso3166'   ,'year'); skip.y.na=F
+  
+  # get col names and check for existence
+  if (identical(by.y, NA)) by.y=by.x
+  if (identical(on.x, NA)) on.x=setdiff(names(x), by.x)
+  if (identical(on.y, NA)) on.y=on.x  
+  stopifnot(by.x %in% names(x))
+  stopifnot(by.y %in% names(y))
+  stopifnot(on.x %in% names(x))
+  stopifnot(on.y %in% names(y))
+  
+  # load comparison data
+  r = merge(x[,c(by.x, on.x)], 
+            setNames(y[,c(by.y, on.y)],
+                     c(by.x, sprintf('%s.y', on.x))) , all=T)
+  on.y = sprintf('%s.y', on.x)
+  r = r[do.call(order, r[,by.x, drop=F]),]
+  
+  # calculate differences
+  for (f in on.x){ # f = on.x[1]    
+    u = r[[f]]
+    v = r[[sprintf('%s.y',f)]]
+    if (is.numeric(u) & is.numeric(v)){
+      r[[sprintf('%s.dif',f)]]   = u - v
+      r[[sprintf('%s.equ',f)]]   = is.na(v) | (!is.na(v) & !is.na(u) & round(v, precision) == round(u, precision))
+    } else {      
+      u = as.character(u)
+      v = as.character(u)
+      r[[sprintf('%s.dif',f)]]   = ifelse(u!=v, sprintf("'%s'->'%s'",u,v), NA)
+      r[[sprintf('%s.equ',f)]]   = is.na(v) | (!is.na(v) & !is.na(u) & u==v)      
+    }
+    if (skip.y.na==F){
+      r[[sprintf('%s.notNA',f)]] = !is.na(u) | (is.na(v) & is.na(u))  
+    }
+  }
+  
+  # align columns
+  sfx = c('y','dif','equ')
+  if (skip.y.na==F) sfx = c(sfx,'notNA')
+  r = r[, c(by.x, as.vector(t(cbind(on.x, matrix(sapply(sfx, function(f) sprintf('%s.%s', on.x, f)), nrow=length(on.x))))))]
+  
+  if (drop.mutual.na){
+    idx.y.notin.x = which(rowSums(is.na(r[,on.x,drop=F]))==length(on.x))
+    idx.x.notin.y = which(rowSums(is.na(r[,on.y,drop=F]))==length(on.y))
+    idx = intersect(idx.y.notin.x, idx.x.notin.y)
+    if (length(idx) >0){
+      cat('dropping mutual NAs:', length(idx),'/',nrow(r),'\n')
+      r = r[-idx,]
+    }
+  }
+  
+  # print to summary to console
+  if (verbosity > 0 ){
+    # report overall mismatches
+    idx.y.notin.x = which(rowSums(is.na(r[,on.x,drop=F]))==length(on.x))
+    idx.x.notin.y = which(rowSums(is.na(r[,on.y,drop=F]))==length(on.y))
+    if (length(idx.y.notin.x)>0){
+      cat('all y in x FAIL!:', length(idx.y.notin.x),'/',nrow(y),'\n')
+      print(head(r[idx.y.notin.x, c(by.x, on.y)], row.names=F))
+      if (length(idx.y.notin.x) > 6) cat('...\n')
+    } else {
+      cat('all y in x success:', nrow(y),'\n')
+    }
+    if (length(idx.x.notin.y)>0){
+      cat('all x in y FAIL!:', length(idx.x.notin.y),'/',nrow(x),'\n')
+      print(head(r[idx.x.notin.y, c(by.x, on.x)], row.names=F))
+      if (length(idx.x.notin.y) > 6) cat('...\n')
+    } else {
+      cat('all x in y success:', nrow(x),'\n')
+    }
+    
+    # report individual fields
+    sfx = c('equ')
+    if (skip.y.na==F) sfx = c(sfx,'notNA')
+    flds = as.vector(t(sapply(sfx, function(f) sprintf('%s.%s', on.x, f))))
+    names(flds) = as.vector(t(matrix(rep(on.x, length(sfx)), ncol=length(sfx))))
+    for (i in 1:length(flds)){ # i = 1
+      f = flds[i]
+      col = names(flds[i])
+      v = r[[f]]
+      nF = sum(v==F)
+      if(nF>0){
+        cat(f, ' FAIL! on', nF, '/', nrow(r) ,'\n')
+        print(head(r[v==F, c(by.x, col, sprintf('%s.%s', col, c('y','dif')))], 6), row.names=F)
+        if (nF > 6) cat('...\n')
+        cat('\n')
+      } else {
+        cat(f, 'success\n\n')
+      }
+    }
+  }
+  
+  # return r
+  return(r)
+}
+
+aggregate_by_country = function(df, col.value='value', col.country='country_id'){
+  library(sqldf)
+  
+  # debug: df = cn; col.value='status'; col.country='country_id'
+  regions_georegions = setNames(regions_georegions, c('region_id', 'n', 'r0', 'r1', 'r2'))
+  
+  # get data joined to georegions
+  q = sprintf("SELECT d.%s AS country_id, c.country_area_km2, d.%s AS value, g.r0, g.r1, g.r2
+              FROM df AS d
+              JOIN georegions_countries AS g USING (country_id)
+              JOIN countries AS c USING (country_id)              
+              WHERE value IS NOT NULL
+              ORDER BY country_id", col.country, col.value)
+  d = sqldf(q)
+  
+  # aggregate into regional area-weighted averages based on actual data
+  t_regionals = sqldf(
+    "SELECT * FROM (
+    -- aggregate into r0 (world) georegion
+    SELECT r0, SUM(value * country_area_km2)/SUM(country_area_km2) AS r0_mean, COUNT(*) AS r0_n
+    FROM d
+    GROUP BY r0
+  ) AS t0 JOIN (
+    -- aggregate into r1 (continent) georegions
+    SELECT r0, r1, SUM(value * country_area_km2)/SUM(country_area_km2) AS r1_mean, COUNT(*) AS r1_n
+    FROM d
+    GROUP BY r0, r1
+  ) AS t1 USING (r0) JOIN (
+    -- aggregate into r2 (regional) georegions
+    SELECT r0, r1, r2, SUM(value * country_area_km2)/SUM(country_area_km2) AS r2_mean, COUNT(*) AS r2_n
+    FROM d
+    GROUP BY r0, r1, r2
+  ) AS t2 USING (r0, r1)")
+  
+  # calculate OHI region area weighted average of values using available data
+  t_actuals = sqldf("SELECT * FROM  (    
+                    -- first find actuals for regions with data for only a single country
+                    SELECT  region_id, 
+                    MIN(d.value) AS score, 1 AS n    -- note this means MIN == d.value
+                    FROM d
+                    JOIN regions_countries AS r USING (country_id)
+                    GROUP BY region_id
+                    HAVING COUNT(*) = 1
+                    UNION
+                    -- now aggregate (with weighted average by area) regions with data
+                    -- for more than one country
+                    SELECT  region_id, 
+                    SUM(d.value * d.country_area_km2)/SUM(d.country_area_km2) AS score, COUNT(*) AS n
+                    FROM d
+                    JOIN regions_countries AS r USING (country_id)
+                    GROUP BY region_id
+                    HAVING COUNT(*) > 1
+  ) ORDER BY region_id")
+  
+  # merge the results so that available data is used when present,
+  # otherwise use r2, r1, or r0 geomeans, in that order
+  t_scores = sqldf(
+    "SELECT r.region_id, 
+    CASE  WHEN d.score IS NOT NULL     THEN d.score
+    WHEN g.r2_mean IS NOT NULL   THEN g.r2_mean
+    WHEN g.r1_mean IS NOT NULL   THEN g.r1_mean
+    ELSE g.r0_mean
+    END AS score,
+    CAST(
+    CASE WHEN d.score IS NOT NULL THEN 'actual'
+    ELSE 'georegion'
+    END AS VARCHAR(80)) AS source
+    FROM regions_georegions r
+    LEFT JOIN t_actuals d USING (region_id)
+    LEFT JOIN t_regionals g USING (r0, r1, r2)
+    WHERE (d.region_id IS NOT NULL OR g.r0 IS NOT NULL) -- must have *some* data
+    ORDER BY r.region_id")
+  
+  # return
+  df.out = setNames(t_scores[,c('region_id','score')], c('region_id', col.value))
+  attr(df.out, 'source') = t_scores[,'source']
+  return(df.out)
+}
+
+aggregate_weighted = function(df, w, col.value='value', col.country='country_id', col.weight='weight'){
+  library(sqldf)
+  
+  # eg LIV in calc.LE:
+  #  a = aggregate_weighted(df=subset(s, component='livelihood'),
+  #                          w=subset(cy, year==workforce_year & !is.na(workforce), c(country_id,workforce)), 
+  #                          col.value='score', col.country='country_id', col.weight='workforce') # ABW workforce==NA
+  
+  # set common names to regions_georegions
+  regions_georegions = setNames(regions_georegions, c('region_id', 'n', 'r0', 'r1', 'r2'))
+  
+  # standardize names, first limiting to only used fields
+  w  =  w[,c(col.country,col.weight)]
+  df = df[,c(col.country,col.value)]
+  names(w)[names(w)==col.weight] = 'w'
+  names(df)[names(df)==col.value] = 'value'
+  names(df)[names(df)==col.country] = 'country_id'
+  
+  # get data joined to georegions
+  q = sprintf("SELECT d.country_id, d.value, w.w, g.r0, g.r1, g.r2
+              FROM df AS d
+              JOIN georegions_countries AS g USING (country_id)
+              JOIN w USING (country_id)
+              WHERE value IS NOT NULL
+              ORDER BY country_id")
+  d = sqldf(q)
+  
+  # aggregate into regional area-weighted averages based on actual data
+  t_regionals = sqldf(
+    "SELECT * FROM (
+    -- aggregate into r0 (world) georegion
+    SELECT r0, SUM(value * w)/SUM(w) AS r0_mean, COUNT(*) AS r0_n
+    FROM d
+    GROUP BY r0
+  ) AS t0 JOIN (
+    -- aggregate into r1 (continent) georegions
+    SELECT r0, r1, SUM(value * w)/SUM(w) AS r1_mean, COUNT(*) AS r1_n
+    FROM d
+    GROUP BY r0, r1
+  ) AS t1 USING (r0) JOIN (
+    -- aggregate into r2 (regional) georegions
+    SELECT r0, r1, r2, SUM(value * w)/SUM(w) AS r2_mean, COUNT(*) AS r2_n
+    FROM d
+    GROUP BY r0, r1, r2
+  ) AS t2 USING (r0, r1) 
+    ORDER BY r0, r1, r2")  
+  
+  # TODO: generalize aggregate_*() functions to accept country, year, weights with code above, and use same code below.
+  
+  # calculate OHI region area weighted average of values using available data
+  t_actuals = sqldf(
+    "SELECT * FROM  (    
+    -- first find actuals for regions with data for only a single country
+    SELECT  region_id, 
+    MIN(d.value) AS score, 1 AS n    -- note this means MIN == d.value
+    FROM d
+    JOIN regions_countries AS r USING (country_id)
+    GROUP BY region_id
+    HAVING COUNT(*) = 1
+    UNION
+    -- now aggregate (with weighted average by area) regions with data
+    -- for more than one country
+    SELECT  region_id, 
+    SUM(d.value * d.w)/SUM(d.w) AS score, COUNT(*) AS n
+    FROM d
+    JOIN regions_countries AS r USING (country_id)
+    GROUP BY region_id
+    HAVING COUNT(*) > 1
+  ) ORDER BY region_id")
+  
+  # merge the results so that available data is used when present,
+  #   otherwise use r2, r1, or r0 geomeans, in that order
+  t_scores = sqldf(
+    "SELECT r.region_id, 
+    CASE  WHEN d.score IS NOT NULL     THEN d.score
+    WHEN g.r2_mean IS NOT NULL   THEN g.r2_mean
+    WHEN g.r1_mean IS NOT NULL   THEN g.r1_mean
+    ELSE g.r0_mean
+    END AS score,
+    CAST(CASE WHEN d.score IS NOT NULL THEN 'actual'
+    ELSE 'georegion'
+    END AS VARCHAR(80)) AS source
+    FROM regions_georegions r
+    LEFT JOIN t_actuals d USING (region_id)
+    LEFT JOIN t_regionals g USING (r0, r1, r2)
+    WHERE (d.region_id IS NOT NULL OR g.r0 IS NOT NULL) -- must have *some* data
+    ORDER BY r.region_id")
+  
+  # return
+  df.out = setNames(t_scores[,c('region_id','score')], c('region_id', col.value))
+  attr(df.out, 'source') = t_scores[,'source']
+  return(df.out)
+}
+
+aggregate_by_country_year = function(df, col.value='value', col.country='country_id'){
+  library(sqldf)
+  
+  # debug: df = cny_k = subset(cnky, product=='fish_oil'); col.value='Xp'; col.country='country_id'
+  regions_georegions = setNames(regions_georegions, c('region_id', 'n', 'r0', 'r1', 'r2'))
+  
+  # get data joined to georegions
+  q = sprintf("SELECT d.%s AS country_id, d.year, c.country_area_km2, d.%s AS value, g.r0, g.r1, g.r2
+              FROM df AS d
+              JOIN georegions_countries AS g USING (country_id)
+              JOIN countries AS c USING (country_id)              
+              WHERE value IS NOT NULL
+              ORDER BY country_id", col.country, col.value)
+  d = sqldf(q)
+  
+  # aggregate into regional area-weighted averages based on actual data
+  t_regionals = sqldf(
+    "SELECT * FROM (
+    -- aggregate into r0 (world) georegion
+    SELECT year, r0, SUM(value * country_area_km2)/SUM(country_area_km2) AS r0_mean, COUNT(*) AS r0_n
+    FROM d
+    GROUP BY year, r0
+  ) AS t0 JOIN (
+    -- aggregate into r1 (continent) georegions
+    SELECT year, r0, r1, SUM(value * country_area_km2)/SUM(country_area_km2) AS r1_mean, COUNT(*) AS r1_n
+    FROM d
+    GROUP BY year, r0, r1
+  ) AS t1 USING (year, r0) JOIN (
+    -- aggregate into r2 (regional) georegions
+    SELECT year, r0, r1, r2, SUM(value * country_area_km2)/SUM(country_area_km2) AS r2_mean, COUNT(*) AS r2_n
+    FROM d
+    GROUP BY year, r0, r1, r2
+  ) AS t2 USING (year, r0, r1)")
+  
+  # calculate OHI region area weighted average of values using available data
+  t_actuals = sqldf("SELECT * FROM  (    
+                    -- first find actuals for regions with data for only a single country
+                    SELECT d.year, region_id, 
+                    MIN(d.value) AS score, 1 AS n    -- note this means MIN == d.value
+                    FROM d
+                    JOIN regions_countries AS r USING (country_id)
+                    GROUP BY region_id, d.year
+                    HAVING COUNT(*) = 1
+                    UNION
+                    -- now aggregate (with weighted average by area) regions with data
+                    -- for more than one country
+                    SELECT d.year, region_id, 
+                    SUM(d.value * d.country_area_km2)/SUM(d.country_area_km2) AS score, COUNT(*) AS n
+                    FROM d
+                    JOIN regions_countries AS r USING (country_id)
+                    GROUP BY region_id, d.year
+                    HAVING COUNT(*) > 1
+  ) ORDER BY region_id")
+  
+  # merge the results so that available data is used when present,
+  # otherwise use r2, r1, or r0 geomeans, in that order
+  t_scores = sqldf(
+    "SELECT d.year, r.region_id, 
+    CASE  WHEN d.score IS NOT NULL     THEN d.score
+    WHEN g.r2_mean IS NOT NULL   THEN g.r2_mean
+    WHEN g.r1_mean IS NOT NULL   THEN g.r1_mean
+    ELSE g.r0_mean
+    END AS score,
+    CAST(
+    CASE WHEN d.score IS NOT NULL THEN 'actual'
+    ELSE 'georegion'
+    END AS VARCHAR(80)) AS source
+    FROM regions_georegions r
+    LEFT JOIN t_actuals d USING (region_id)
+    LEFT JOIN t_regionals g USING (year, r0, r1, r2)
+    WHERE (d.region_id IS NOT NULL OR g.r0 IS NOT NULL) -- must have *some* data
+    ORDER BY d.year, r.region_id")
+  
+  # return
+  df.out = setNames(t_scores[,c('year','region_id','score')], c('year', 'region_id', col.value))
+  attr(df.out, 'source') = t_scores[,'source']
+  return(df.out)
+}
+
+check.layers_navigation = function(layers_navigation.csv, dir.layers, layers_id_fields){
+  # for each layer listed in layers_navigation.csv, check for file in dir.layers,
+  # and update layers_navigation.csv with information about the file's existence and identified fields for assembling into layers_data.csv
+
+  # read in
+  ln = read.csv(layers_navigation.csv)
+  
+  # initialize fields to populate
+  ln$file_exists   = F
+  ln$id_num    = NA
+  ln$id_chr    = NA
+  ln$category  = NA
+  ln$year      = NA
+  ln$value_num = NA
+  ln$value_chr = NA
+  ln$flds_unused   = NA
+  
+  for (i in 1:nrow(ln)){ # i=5
+    
+    # identify layer and read in file
+    cat(ln$layer[i],'\n')
+    fn = file.path(dir.layers, ln$fn[i])
+    if (!file.exists(fn)) next
+    ln$file_exists[i] = T
+    d = read.csv(fn)
+    names(d) = tolower(names(d))
+    
+    # get field types
+    fld_types = sapply(as.list(d), class)
+    
+    # id field
+    idx.ids = which(names(d) %in% layers_id_fields)
+    if (length(idx.ids)>0){
+      # if more than one id field, then presume lookup table and get the id field entirely unique rows
+      if (length(idx.ids)>1){
+        fld_id = names(d)[lapply(as.list(d[,idx.ids]), anyDuplicated)==0]
+      } else {
+        fld_id = names(d)[idx.ids]
+      }
+      
+      # assign id field based on type
+      if (fld_types[fld_id]=='character'){
+        ln$id_chr[i] = fld_id
+      } else {
+        ln$id_num[i] = fld_id
+      }
+    }
+    
+    # units field
+    fld_units = tolower(chartr('/ ','..', ln$units[i])) # translate slash or space to a single dot
+    if (!fld_units %in% names(d)){
+      ln$flds_missing[i] = paste(ln$flds_missing[i], fld_units)
+    } else {
+      if (fld_types[fld_units]=='character'){
+        ln$value_chr[i] = fld_units
+      } else {
+        ln$value_num[i] = fld_units
+      }
+    }
+    
+    # year
+    if ('year' %in% names(d)) ln$year[i] = 'year'
+
+    # get other fields not assigned
+    flds_assigned = as.vector(na.omit(t(ln[i,
+      c('id_num','id_chr','category','year','value_num','value_chr')])))
+    flds_other = setdiff(names(d), flds_assigned)
+        
+    # category - presume last remaining unidentified field
+    if (length(flds_other>0)) ln$category[i] = flds_other[1]
+  
+    # still unassigned?
+    if (length(flds_other>1)) ln$flds_unused[i] = paste(flds_other[-1], collapse=',')  
+  }
+  write.csv(ln, layers_navigation.csv, row.names=F, na='')
+}
+
+assemble.layers_data = function(layers_navigation.csv, dir.layers, layers_data.csv, layers_id_fields){
+  library(plyr)
+  
+  # initialize
+  ln = read.csv(layers_navigation.csv, na.strings='')
+  ld = data.frame(layer     = character(),
+                  id_num    = numeric(),
+                  id_chr    = character(),
+                  category  = character(),
+                  year      = numeric(),
+                  value_num = numeric(),
+                  value_chr = character())
+  flds_ld  = names(ld)
+  flds_std = names(ld)[-1] # except layer
+    
+  # iterate layers
+  for (i in 1:nrow(ln)){ # i=5
+    
+    # identify layer and read in file
+    cat(ln$layer[i],'\n')
+    fn = file.path(dir.layers, ln$fn[i])
+    d = read.csv(fn)
+    names(d) = tolower(names(d))
+    
+    # rename to standardized field names
+    flds = ln[i, flds_std]
+    flds = flds[, !is.na(flds), drop=F]
+    d = rename(d, setNames(names(flds), flds))
+    d$layer = ln$layer[i]
+
+    # bind to master
+    flds_miss = setdiff(flds_ld, names(d))
+    dm = setNames(as.data.frame(matrix(rep(NA, nrow(d)*length(flds_miss)), ncol=length(flds_miss))), flds_miss)
+    #ld = tryCatch(rbind(ld, cbind(d, dm)), error=browser())
+    ld = rbind(ld, cbind(d, dm))
+  }
+  
+  # write out
+  ld = ld[,flds_ld]
+  write.csv(ld, layers_data.csv, row.names=F, na='')      
+}
+# calculations ------------------------------------------------------------
+
+calc.S.T = function(){
+  for (g in ohi.goal.subgoal.all){
+    cat(g,'\n')
+    
+    # load goal-specific data if exists
+    if (file.exists(sprintf('data/layers_data_%s.csv',g))){ 
+      cat('   yes\n')
+      #     ohi.load(sprintf('layers_data_%s',g))
+      #     d = get(sprintf('layers_data_%s',g))
+    } else {
+      cat('   no\n')
+      #    d = layers_data   
+    }
+  }
+}
+
+
+calc.P = function(){
+  
+  
+  
+}
+
+
+
+# lookup old <-> new goal names -------------------------------------------
+# for backward compatability, have lookups between new goal/subgoal and old goal-component naming, with and without dashes
+
+# ftmp <- tempfile()
+# cat(file=ftmp,
+#     "goal.new,goal.old,component.old
+# AO,artisanal-fishing,all
+# BD,biodiversity,
+# CS,carbon-storage,all
+# CW,clean-waters,
+# FP,food-provision,combo
+# LE,livelihoods,
+# NP,natural-products,combo
+# CP,safe-coastlines,all
+# SP,sense-of-place,
+# TR,tourism-and-recreation,all
+# HAB,biodiversity,habitats
+# SPP,biodiversity,species
+# FIS,food-provision,fishing
+# MAR,food-provision,mariculture
+# LIV,livelihoods,livelihood
+# ECO,livelihoods,economy
+# ICO,sense-of-place,iconic-species
+# LSP,sense-of-place,lasting-special-places")
+# ohi.old.goal.component = read.csv(ftmp)
+# dump(ohi.old.goal.component)
+ohi.old.goal.component <-
+  structure(list(goal.new = c("AO", "BD", "CS", "CW", "FP", "LE", 
+                              "NP", "CP", "SP", "TR", "HAB", "SPP", "FIS", "MAR", "LIV", "ECO", 
+                              "ICO", "LSP"), 
+                 goal.old = c("artisanal-fishing", "biodiversity", "carbon-storage", "clean-waters", "food-provision", "livelihoods", 
+                              "natural-products", "safe-coastlines", "sense-of-place", "tourism-and-recreation", 
+                                                          "biodiversity", "biodiversity", "food-provision", "food-provision", 
+                                                          "livelihoods", "livelihoods", "sense-of-place", "sense-of-place"
+                              ), 
+                 component.old = c("all", "", "all", "", "combo", "", "combo", 
+                                                   "all", "", "all", "habitats", "species", "fishing", "mariculture", 
+                                                   "livelihood", "economy", "iconic-species", "lasting-special-places"
+                              )
+                 ), 
+            .Names = c("goal.new", "goal.old", "component.old"), class = "data.frame")
+
+ohi.goal.to.old.goal.component = function(g, with.dashes=F){
+  # convert current 2-letter goal or 3-letter subgoal code to old style long name goal and component
+  stopifnot(g %in% ohi.old.goal.component[['goal.new']])
+  v = as.character(ohi.old.goal.component[ohi.old.goal.component[['goal.new']]==g, c('goal.old','component.old')])
+  if (with.dashes==F){ v = gsub('-','', v) }
+  names(v) = c('goal','component')
+  return(v)
+}
+ohi.old.goal.component.to.goal = function(goal.old, component.old=''){
+  # convert old style long name goal and component to current 2-letter goal or 3-letter subgoal code
+  g.old = gsub('-','', goal.old)
+  c.old = gsub('-','', component.old)
+  if (g.old %in% c('artisanalfishing', 'carbonstorage', 'safecoastlines', 'tourismandrecreation') & c.old=='') {
+    c.old = 'all'
+  } else if (g.old %in% c('foodprovision', 'naturalproducts') &  c.old=='') {
+    c.old = 'combo'
+  }
+  stopifnot(g.old %in% gsub('-','',ohi.old.goal.component[['goal.old']]) & c.old %in% gsub('-','',ohi.old.goal.component[['component.old']]))
+  #v = as.character(subset(ohi.old.goal.component, gsub('-','', goal.old)==g & gsub('-','', component.old)==c, c(goal.new)))
+  v = as.character(ohi.old.goal.component[gsub('-','', ohi.old.goal.component[['goal.old']])==g.old & gsub('-','', ohi.old.goal.component[['component.old']])==c.old, c('goal.new')])
+  names(v) = c('goal')
+  return(v)
+}
+
+
+# environment -------------------------------------------------------------
+
+ohi.markdown.css = system.file('shiny_app', 'markdown.css', package='ohi')
+
+ohi.options <- function() {
+    double.digits <- 15 # <- floor(log10(.Machine$double.base^.Machine$double.digits)) 
+    options(digits=double.digits)
+    options(stringsAsFactors=FALSE)
+    options(width=120) # for outputting wide columns
+    options(rstudio.markdownToHTML = 
+              function(inputFile, outputFile) {      
+                # example: eg /var/data/ohi/model/GL-NCEAS-Pressures_Matrix/report9.Rmd
+                # see: http://www.rstudio.com/ide/docs/authoring/markdown_custom_rendering
+                # original: '/Applications/RStudio.app/Contents/Resources/resources/markdown.css'
+                markdownToHTML(inputFile, outputFile, stylesheet=ohi.markdown.css)   
+              })
+    options()
+}
+
+.onLoad <- function(libname, pkgname) {
+    options(ohi.options())
+}
+
+.onAttach <- function(libname, pkgname){
+  packageStartupMessage(paste('Loading OHI options (version ', as.character(ohi.version), ')', sep=''))  
+}
+
+# require.or.install.packages = function(packages){
+#   for (p in packages){ # p='raster'
+#     if (!p %in% installed.packages()[,'Package']){
+#       install.packages(p, dependencies=T, verbose=F)
+#     }
+#     suppressPackageStartupMessages(require(p, character.only=T))
+#   }
+# }
+
+
+# style -------------------------------------------------------------------
+
+md.table <- function(d, justify='right', split.tables=120, ...){
+  # see use of ohi.markdown.css with .onLoad options above
+  # render markdown tables from input table that are compatible with knitr to HTML for use in Rmarkdown and Knit HTML in RStudio
+  # also see styling of CSS tables, per http://www.rstudio.com/ide/docs/authoring/markdown_custom_rendering
+  #suppressPackageStartupMessages(require(pander))
+  
+  s = pander::pandoc.table.return(d, style='grid', justify=justify, split.tables=split.tables)  
+  s = gsub('\n[\\+\\|]','\n',s)
+  s = gsub('[\\+\\|]\n','\n',s)
+  s = gsub('\n[^=][-\\+\\|]+\n','\n',s)
+  s = gsub('\\=','-',s)
+  s = gsub('\\+','|',s)
+  #S = strsplit(s, '\n')[[1]]
+  #s = paste(S[c(4,5,seq(6,length(S)-2,by=2))], collapse='\n')
+  cat(s)
+}
+
+# set knitr defaults for processing chunks in R markdown
+library(knitr)
+opts_chunk$set(dependson='init',echo=FALSE,cache=TRUE,message=FALSE,fig.width=8,fig.height=5,warning=F)
+#options(warn = 0)
+
+# region functions --------------------------------------------------------
+
+# global regional stuff
+ohi.global.regions.max <- 186
+ohi.global.regions.eez <- 1:172 # include ATA, exclude deleted, disputed, and highseas
+ohi.global.regions.eez.noATA <- setdiff(ohi.global.regions.eez, c(162)) # remove ATA (ID=162)
+ohi.global.regions.highseas <- 175:185
+ohi.global.regions.all <- 1:ohi.global.regions.max
+
+allregions <- function(d=NULL, scope='all') {
+    region.ids <- switch(scope,
+                         all=ohi.global.regions.all,
+                         eez=ohi.global.regions.eez,
+                         eez.noATA=ohi.global.regions.eez.noATA,
+                         highseas=ohi.global.regions.highseas)
+
+    stopifnot(is.null(region.ids) == FALSE)
+    
+    # left join with every region
+    if (is.null(d)) {
+        data.frame(id=region.ids)
+    } else {
+        merge(allregions(NULL, scope), d, all.x=T)
+    }
+}
+
+
+ohi.model.goal <- function(id, status, trend, resilience, pressure, 
+                             DISCOUNT = 1.0, BETA = 0.67, default.trend = 0.0) {
+    #' Goal-level computation function to goal score ("component indicators for
+    #' public goals") based on status, trend, resilience, pressure
+    #'
+    #' Parameters:
+    #' @param id is the subregion identifier
+    #' @param status (x)
+    #' @param trend (t)
+    #' @param resilience (r)
+    #' @param pressure (p)
+    #'
+    #' Constants:
+    #' @param DISCOUNT is the discount factor (i.e., df = 1 - rate)
+    #' @param BETA is the trend dampening constant, aka "beta"
+    #'
+    #' Flags:
+    #'
+    #'
+    #' Returns:
+    #' @return data table with status (x), trend (t), resilience (r), 
+    #' pressure (p), plus additional columns for future status (xF)
+    #' and the goal score (score).
+
+    # verify parameters
+    if (getOption('debug', FALSE)) {
+        stopifnot(BETA >= 0 && BETA <= 1)
+        stopifnot(DISCOUNT >= 0)
+    }
+
+    # Simplify symbols based on math writeup
+    d <- data.frame(id=id, x=status, t=trend, r=resilience, p=pressure)
+
+    # replace a trend of NA with a default (0)
+    if (!is.null(default.trend) && is.numeric(default.trend) && any(is.na(d$t))) {
+        d$t[is.na(d$t)] <- default.trend
+    }
+
+    # enforce domains
+    if (getOption('debug', FALSE)) {
+        stopifnot(min(d$x, na.rm=T) >= 0  && max(d$x, na.rm=T) <= 1)   #  [0, 1]
+        stopifnot(min(d$t, na.rm=T) >= -1 && max(d$t, na.rm=T) <= 1)   # [-1, 1]
+        stopifnot(min(d$r, na.rm=T) >= 0  && max(d$r, na.rm=T) <= 1)   #  [0, 1]
+        stopifnot(min(d$p, na.rm=T) >= 0  && max(d$p, na.rm=T) <= 1)   #  [0, 1]
+    }
+
+    # compute "future" status, using all dimensions
+    d$xF <- with(d, (DISCOUNT * (1 + (BETA * t) + ((1-BETA) * (r - p)))) * x)
+    # clamp status domain to [0, 1]
+    d$xF <- with(d, score.clamp(xF))
+    # compute score using formula for individual goal component indicator
+    d$score <- with(d, (x + xF)/2)
+    # return results
+    d
+}
+
+"ohi.model.pressures" <- function(p, w, GAMMA=0.5) {
+    #' Computation of pressure
+    #'
+    #' The weighting matrix and the pressure scores matrix are of the form
+    #' [region_id] x [pressure]
+    #'
+    #' The pressure names must be of the form "category"_"pressure". 
+    #' Use "ss" to denote the social category.
+    #'    
+    #' Parameters:
+    #' @param p is the pressures value matrix [region_id x pressure]
+    #' @param w is the weighting matrix of the form [region_id x pressure]
+    #'
+    #' @return pressures scores as a named vector.
+    
+    # verify parameters
+    if (getOption('debug', FALSE)) {
+        stopifnot(is.array(w) && is.array(p))
+        stopifnot(min(p, na.rm=T) >= 0  && max(p, na.rm=T) <= 1)   #  [0, 1]
+        stopifnot(min(w, na.rm=T) >= 0  && max(w, na.rm=T) <= 3)   #  [0, 3]
+    }
+    
+    # normalize dimension handles
+    stopifnot(all(names(dimnames(p)) == c('region_id', 'pressure')))
+    stopifnot(all(names(dimnames(w)) == c('region_id', 'pressure')))
+    stopifnot(all(dimnames(w)$region_id %in% dimnames(p)$region_id))
+    stopifnot(all(dimnames(w)$pressure %in% dimnames(p)$pressure))
+    
+    # align
+    w <- with(dimnames(p), w[region_id,pressure])
+    
+    # create tree for hierarchy of pressures categories
+    stopifnot(all(grepl('_', dimnames(p)$pressure)))
+    pcat <- data.frame(pressure=unique(dimnames(p)$pressure))
+    pcat <- within(pcat, {
+      category <- gsub('^([a-z]+)_.*$', '\\1', tolower(pressure))
+    })
+    # all.cats <- unlist(ohi.pressure.category, use.names=F)
+    # stopifnot(all(pcat$category %in% all.cats))
+        
+    # Step 1: apply rank weights
+    w <- ifelse(w == 0, NA, w) # exclude any 0 or NoData weights
+    p_w <- p * w
+    p_w <- merge(melt(p_w), pcat, all.x=T, by='pressure')
+    p_w <- acast(p_w, region_id ~ category ~ pressure)
+    
+
+    # Step 2: rescale and save the max rank weight per category for later
+    p_w_max <- array(NA, 
+                     dim=c(dim(p_w)[[1]], length(ohi.pressure.category$environmental)), 
+                     dimnames=list(region_id=dimnames(p)[[1]], 
+                                   category=ohi.pressure.category$environmental))
+    p_k <- p_w_max
+    for (k in dimnames(p_k)$category) {
+      j <- grep(paste('^', k, '_', sep=''), dimnames(w)[[2]], value=T)
+      wj <- w[,j, drop=F]
+      pj <- p[,j, drop=F]
+      
+      p_w_max[,k] <- apply.byrow(wj, function(x) { 
+          if (all(is.na(x))) {
+            NA
+          } else {
+            max(x, na.rm=T)
+          }
+        })
+      
+      # Eq (8) from Nature 2012
+      p_k[,k] <- apply.byrow(pj * wj, function(x) { # Refs #26 - fix problem when all stressors within a category are NA
+          if (all(is.na(x))) {
+            NA
+          } else {
+            sum(x, na.rm=T)
+          }
+        })  # sum over all pressures
+      p_k[,k] <- score.rescale(p_k[,k], xlim=c(0,3)) # rescale from rank weight max
+      p_k[,k] <- score.clamp(p_k[,k]) # clamp to [0,1]
+    }
+    
+    # Step 3: compute environmental pressures score using weights from max ranks
+    k <- ohi.pressure.category$environmental
+    p_e <- rep(NA, nrow(p_k))
+    for (i in 1:nrow(p_k)) {
+      # Eq (9) from Nature 2012
+      p_e[i] <- sum(p_k[i,k] * p_w_max[i,k], na.rm=T) / sum(ifelse(is.na(p_k[i,k]),NA,1) * p_w_max[i,k], na.rm=T)
+    }
+    names(p_e) <- dimnames(p_k)$region_id
+    
+    # Step 4: compute social pressures score using unweighted pressures
+    # Eq (10) from Nature 2012
+    stopifnot(length(ohi.pressure.category$social) == 1) # supports only a single social category
+    k <- ohi.pressure.category$social[[1]]
+    j <- grep(paste('^', k, '_', sep=''), dimnames(p)[[2]], value=T)
+    p_s <- score.clamp(apply.byrow(p[,j, drop=F], mean, na.rm=T))
+    names(p_s) <- rownames(p)
+    stopifnot(!all(is.nan(p_s)))
+    
+    # Step 5: apply gamma to environmental and social to yield score per region
+    p_x <- (GAMMA * p_e) + ((1-GAMMA) * p_s)
+    p_x
+}
+
+ohi.model.pressures.matrix <- function(alpha, beta, calc='avg') {
+  #' Parameters:
+  #' @param alpha weighting matrix of the form [category x pressure]
+  #' @param beta aggregation matrix of the form [region_id x category] to collapse across each category
+  #' @param calc type of calculation, whether avg (default), mean (diff't from avg?) or presence (results in 1 or 0)
+
+  w <- matrix(NA, nrow=dim(beta)[[1]], ncol=dim(alpha)[[2]], 
+              dimnames=list(region_id=dimnames(beta)[[1]], pressure=dimnames(alpha)[[2]]))
+  for (i in dimnames(w)$region_id) { # i=dimnames(w)$region_id[1]
+    for (j in dimnames(w)$pressure) { # j=dimnames(w)$pressure[1]
+      if (calc=='avg'){
+        w[i,j] <- sum(t(alpha)[j,] * beta[i,], na.rm=T) / sum(beta[i,], na.rm=T)        
+      } else if (calc=='mean') {
+        # eg HAB (see /var/data/ohi/model/GL-NCEAS-Pressures_Matrix/report7.R)
+        # TODO: check whether bug in HAB calculation or intentional since beta [region_id x category] only ever 1 or NA
+        w[i,j] <- mean(t(alpha)[j,] * beta[i,], na.rm=T)
+      } else if (calc=='presence') {
+        w[i,j] <- mean(t(alpha)[j,] * beta[i,], na.rm=T)
+      } else {
+        stop("ohi.model.pressures.matrix() calc argument not one of required: 'avg','mean','presence'")
+      }
+    }
+  }
+  # convert NaN to NA (which happens when dividing by 0, ie no category in given region_id)
+  w[is.nan(w)] <- NA
+  w
+}
+
+ohi.model.resilience.matrix <- function(b, w.layers=NA) {
+  stopifnot(all(names(dimnames(b)) == c('region_id', 'layer')))
+  if (missing(w.layers)) {
+    w.layers <- rep(1, dim(b)[[2]])
+    names(w.layers) <- dimnames(b)$layer
+  } else {
+    stopifnot(is.vector(w.layers))
+  }
+  stopifnot(all(dimnames(b)$layer %in% names(w.layers)))
+  
+  # calculate to preserve dimensionality and NoData values
+  ifelse(b,1,NA) * matrix(w.layers[dimnames(b)$layer], nrow=nrow(b), ncol=ncol(b), byrow=T)
+}
+
+ohi.resilience.category <- c('environmental', 'regulatory', 'social')
+
+ohi.model.resilience <- function(r, t, w=NA, gamma=0.5) {
+    stopifnot(all(is.matrix(r), is.vector(t)))
+    stopifnot(all(t %in% ohi.resilience.category))
+    stopifnot(all(names(dimnames(r)) == c('region_id', 'layer')))    
+    stopifnot(all(dimnames(r)$layer %in% names(t)))
+    
+    if (missing(w)) {
+      w <- rep(1, dim(r)[[2]])
+      names(w) <- dimnames(r)$layer
+      w <- ohi.model.resilience.matrix(!is.na(r), w)
+    } else {
+      stopifnot(is.matrix(w))
+      stopifnot(all(names(dimnames(w)) == c('region_id', 'layer')))
+    }
+    
+    # verify parameters
+    if (getOption('debug', FALSE)) {
+        stopifnot(min(r, na.rm=T) >= 0  && max(r, na.rm=T) <= 1)   #  [0, 1]
+        stopifnot(min(w, na.rm=T) >= 0  && max(w, na.rm=T) <= 2)   #  [0, 2]
+    }
+    
+    # normalize dimension handles
+    stopifnot(all(dimnames(w)$layer %in% dimnames(r)$layer))
+    
+    # align
+    t <- t[dimnames(r)$layer]
+    w <- w[dimnames(r)$region_id, dimnames(r)$layer, drop=F]
+    stopifnot(all(dimnames(r)$layer == dimnames(w)$layer))
+    stopifnot(all(dimnames(r)$layer == names(t)))
+    
+    # compute by category
+    for (k in ohi.resilience.category) {
+      l <- paste('r', k, sep='_')
+      if (k %in% t) {
+        l.r <- r[,names(t)[t == k], drop=F]
+        l.mask <- ifelse(!is.na(l.r), 1, NA)
+        l.w <- w[,dimnames(l.r)$layer, drop=F]
+        l.score <- apply.byrow(l.r*l.w, sum, na.rm=T) / apply.byrow(l.mask*l.w, sum, na.rm=T)
+        assign(l, l.score)
+      } else {
+        assign(l, rep(NA, nrow(r)))
+      }
+    }
+    
+    # compute
+    scores.e <- apply.byrow(cbind(get('r_environmental'), get('r_regulatory')), mean, na.rm=T)
+    scores.s <- get('r_social')
+    scores <- apply.byrow(cbind(scores.e, scores.s), weighted.mean, w=c(gamma,1-gamma), na.rm=T)
+    names(scores) <- dimnames(r)$region_id
+    scores
+}
+
+
+# data file functions -------------------------------------------------
+
+ohi.read.csv <- function(file, na.strings='', row.names=NULL, ...) {
+    read.csv(file, na.strings=na.strings, row.names=row.names, ...)
+}
+
+ohi.write.csv <- function(x, file, digits=NULL, row.names=F, na='', ...) {
+    if (!is.data.frame(x)) {
+        d <- as.data.frame(x)
+    } else {
+        d <- x # deep copy 
+    }
+
+    if (is.null(digits)) {
+        digits <- getOption('digits', 12)
+    }
+    for (i in 1:ncol(d)) {
+        if (typeof(d[,i]) == "double") {
+            #
+            # strip out any extra precision using round+signif
+            #
+            # > options(digits=16)
+            # > x <- as.double(-0.123456789987654321e-16)
+            # > x
+            # [1] -1.234567899876543e-17
+            # > signif(x, 15)
+            # [1] -1.23456789987654e-17
+            # > round(x, 15)
+            # [1] 0
+            # > round(signif(x, 15), 15)
+            # [1] 0
+
+            # > x <- as.double(0.123456789987654321)
+            # > x
+            # [1] 0.1234567899876543
+            # > signif(x, 15)
+            # [1] 0.123456789987654
+            # > round(x, 15)
+            # [1] 0.123456789987654
+            # > round(signif(x, 15), 15)
+            # [1] 0.123456789987654
+            # > 
+
+            d[,i] <- round(signif(d[,i], digits), digits) 
+        }
+    }
+    # write clean CSV files such that real numbers x digits
+    write.csv(d, file, na=na, row.names=row.names, ...)
+}
+
+
+# save data 
+ohi.save <- function(name, dir='data', method=c('RData', 'csv'), ...) {
+    if (getOption('debug', FALSE)) {
+        stopifnot(is.character(name) && exists(name))
+        stopifnot(is.vector(method))
+        stopifnot(any(c('RData','csv') %in% method))
+        stopifnot(file.exists(dir))
+    }
+    
+    if ('RData' %in% method) {
+        fn <- paste(file.path(dir, name), 'RData', sep='.')
+        vcat('saving', name, 'as RData file', fn, '...\n')
+        save(list=name, file=fn, ...)            
+    }
+    if ('csv' %in% method) {
+        fn <- paste(file.path(dir, name), 'csv', sep='.')
+        vcat('saving', name, 'as CSV file', fn, '...\n')
+        ohi.write.csv(get(name), file=fn, ...)
+    }
+    invisible()
+}
+
+# save results in the form of (region_code, dimension) tuples
+ohi.save.results <- function(xdim, dir) {
+    stopifnot(is.character(xdim) && xdim %in% ohi.model.dimensions && exists(xdim))
+    stopifnot(is.data.frame(get(xdim)))
+    ohi.save(xdim, dir=dir, method='csv')
+}
+
+ohi.save.status <- function(dir='..') { ohi.save.results('status', dir) }
+ohi.save.trend <- function(dir='..') { ohi.save.results('trend', dir) }
+ohi.save.pressures <- function(dir='..') { ohi.save.results('pressures', dir) }
+ohi.save.resilience <- function(dir='..') { ohi.save.results('resilience', dir) }
+
+ohi.savebin <- function(name, dir='data', ...) {
+    ohi.save(name, dir, method='RData', ...)
+}
+
+ohi.savetxt <- function(name, dir='data', ...) {
+    ohi.save(name, dir, method='csv', ...)
+}
+
+# load data
+ohi.load <- function(name, dir='data', method=c('RData', 'csv'), envir=.GlobalEnv) {
+    if (getOption('debug', FALSE)) {
+        stopifnot(is.character(name))
+        stopifnot(is.vector(method))
+        stopifnot(any(c('RData','csv') %in% method))
+        stopifnot(file.exists(dir))
+    }
+
+    # load data using as many methods as provided until success
+    for (m in method) {
+        if ('RData' == m) {
+            fn <- paste(file.path(dir, name), 'RData', sep='.')
+            if (file.exists(fn)) {
+                vcat('loading', name, 'from RData file', fn, '...\n')
+                load(fn, envir=envir)
+                invisible(name)
+            }
+        } else if ('csv' == m) {
+            fn <- paste(file.path(dir, name), 'csv', sep='.')
+            if (file.exists(fn)) {
+                vcat('loading', name, 'from CSV file', fn, '...\n')
+                assign(name, ohi.read.csv(fn), envir=envir)
+                invisible(name)
+            } else {
+                warning(paste("File not found:", fn))
+            }
+        } else {
+            warning(paste("Unknown load method:", m))
+        }
+        
+    }
+    invisible()
+}
+
+ohi.loadbin <- function(name, dir='data', envir=.GlobalEnv) {
+    ohi.load(name, dir, method='RData', envir)
+}
+
+
+# scoring functions -------------------------------------------------------
+#
+# > score.max(c(0.5, 1, 2))
+# [1] 0.25 0.50 1.00
+# > score.rescale(c(0.5, 1, 2))
+# [1] 0.00 0.33 1.00
+# > score.clamp(c(-0.5, 1, 2))
+# [1] 0.00 1.00 1.00
+#
+score.rescale <- function(x, xlim=NULL, method='linear', ...) {
+    if (is.null(xlim)) {
+        xlim <- c(min(x, ...), max(x, ...))
+    }
+    if (getOption('debug', FALSE)) {
+        stopifnot(method == 'linear')
+        stopifnot(length(xlim) == 2)
+        stopifnot(xlim[1] == min(xlim))
+        stopifnot(xlim[2] == max(xlim))
+    }
+
+    (x - xlim[1])/(xlim[2]-xlim[1])
+}
+
+score.max <- function(x, p=0.0, ...) {
+    score.rescale(x, xlim=c(0, (max(x, ...)*(1.0 + p))))
+}
+
+score.clamp <- function(x, xlim=c(0,1), ...) {
+    if (getOption('debug', FALSE)) {
+        stopifnot(length(xlim) == 2)
+        stopifnot(xlim[1] == min(xlim))
+        stopifnot(xlim[2] == max(xlim))
+    }
+
+    # x must be first since its class is used in mismatches
+    pmin(pmax(x, xlim[1]), xlim[2]) 
+}
+
+if (getOption('debug', FALSE) && getOption('unit.test', FALSE)) {
+    stopifnot(score.rescale(c(-0.5, 0.0, 0.5, 1.0, 1.5)) == c(0.00, 0.25, 0.5, 0.75, 1.00))
+    stopifnot(score.max(c(-0.5, 0.0, 0.5, 1.0, 1.5)) == c(-1/3, 0, 1/3, 2/3, 1))
+    stopifnot(score.clamp(c(-0.5, 0.0, 0.5, 1.0, 1.5)) == c(0, 0, 0.5, 1, 1))
+}
+
+# shiny app ------------------------------------------------------------------
+launchApp = function(config.R){
+  # library(devtools); la = function() {load_all('/usr/local/ohi/src/R/ohi')}; la()
+  # R -e "install.packages('/usr/local/ohi/src/R/ohi_0.9.12.tar.gz', repos=NULL, type='source')"
+  # launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
+  # R -e "ohi::launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')"
+  
+  config.check(config.R)
+  dir.app = system.file('shiny_app', package='ohi')
+  shiny::runApp(dir.app)
+}
+
+config.check = function(config.R){
+  # read configuration
+  if (!file.exists(config.R)) stop(cat('The file config.R does not exist here: ',config.R))
+  config.R <<- config.R # make global
+  source(config.R)  
+    
+  # check for existence of files and folders set in config.R
+  dirs  = c('dir.data','dir.layers','dir.conf','dir.scenario','dir.scenarios')
+  files = c('goals.csv','layers_navigation.csv','pressures_matrix.csv','resilience_matrix.csv')
+  for (v in c(dirs,files)){
+    if (!exists(v)) stop(sprintf('Path variable %s not set in config.R (%s)',v,config.R))
+    p = get(v)
+    if (is.na(file.info(p)$isdir)) stop(sprintf('Path %s=%s does not exist on filesystem as set in config.R (%s)',v,p,config.R))
+  }
+  
+  # TODO: check for existence of required variables like resilience_components, pressures_components 
+}
+
+config.summary = function(config.R, indent='  '){
+  files = c('goals.csv','layers_navigation.csv','pressures_matrix.csv','resilience_matrix.csv','resilience_weights.csv')
+  for (f in files){
+    cat(indent,f,': PASS\n',sep='')
+  }  
+}
+
+
+# extras ------------------------------------------------------------------
+
+if (getOption('ohi.extras', TRUE)) {
+    # backward compatability
+    goals <- ohi.goal.all
+    goals_subgoals <- ohi.goal.subgoal.all
+    goal_subgoals <- ohi.goal.subgoal.unique
+    ohi.global.regions.noATA <- ohi.global.regions.eez.noATA
+    ohi.global.regions <- ohi.global.regions.eez
+    schemes <- ohi.valuesets
+    subgoals <- ohi.subgoal.all
+    ohi.casestudies <- c('CC'='California Current', 'BR'='Brazil', 'MB'='Mid-Atlantic Bight', 'GL'='Global', 'FJ'='Fiji')
+
+    ###
+    # utility functions
+    vcat <- function(...) {
+        if (getOption('verbose', FALSE) || getOption('debug', FALSE)) {
+            cat(...)
+        }
+    }
+
+    pkey <- function(..., sep='_') { 
+        # make a composite key using character strings
+        paste(..., sep=sep) 
+    }
+
+    mangle <- function(s, sep='') {
+        # convert text into legal identifier
+        # stopifnot(mode(s) == 'character' && all(nchar(s)>0))
+        gsub('[.]+', sep, make.names(s, allow_ = FALSE))
+    }
+
+    starts.with <- function(x, s) { substr(s, 1, nchar(x)) == x }
+    ends.with <- function(x, s) { substr(s, nchar(s)-nchar(x)+1, nchar(s)) == x }
+
+    BY.ROW <- 1; BY.COL <- 2
+
+    apply.byrow <- function(x, f, ...) { apply(x, BY.ROW, f, ...) }
+    apply.bycol <- function(x, f, ...) { apply(x, BY.COL, f, ...) }
+
+
+    ###
+    # save results in the form of (id, dimension(s)) tuples
+    ohi.write.results <- function(x, dir='.', scope='eez', ...) {
+        stopifnot(is.data.frame(x))
+        results <- x
+        names(results) <- tolower(names(results))
+
+        stopifnot('id' %in% tolower(names(results)))
+        results <- allregions(results, scope)
+
+        stopifnot(any(c('value', ohi.model.dimensions) %in% names(results)))
+        ohi.write.csv(results, file.path(dir, '_results_by_region.csv'), ...)
+    }
+
+    ###
+    # locate a file in using fs keys
+    ohi.find.file <- function(name, type = 'stable', ext = '') {
+        fn <- ifelse(nchar(ext) > 0, paste(name, ext, sep='.'), name)
+        p <- as.character(
+        switch (type,
+                model = Sys.getenv("OHI_MODELDIR"),
+                stable = Sys.getenv("OHI_STABLEDIR"),
+                ingest = Sys.getenv("OHI_INGESTDIR"),
+                raw = Sys.getenv("OHI_RAWDIR"),
+                tmp = Sys.getenv("OHI_RUNDIR"),
+                lib = Sys.getenv("OHI_DISK_LIB")
+                )
+        )
+        file.path(p, fn)
+    }
+
+    ###
+    # scenario runs where "A" decreases and "B" increases, 
+    # or vice versa with inverse flag
+    #
+    # scenario.to.beta() >- 1.0
+    # scenario.to.beta('A10') -> 0.9
+    # scenario.to.beta('B10') -> 1.1
+    # scenario.to.beta('B10', trend=T) -> 1.02
+    # scenario.to.beta('A10', inverse=T) -> 1.1
+    # scenario.to.beta('B10', inverse=T) -> 0.9
+    # scenario.to.beta('B10', inverse=T, trend=T) -> 0.98
+    # scenario.to.beta('B300') -> 4.0
+    #
+    scenario.to.beta <- function(s = NA, inverse=F, trend=F) {
+        if (is.na(s) || nchar(s) < 2) {
+            1.0
+        } else {
+            x <- as.numeric(substring(s, 2))/100.0 # X50 -> 0.5
+            if (trend) {
+                x <- x/5
+            }
+            if (toupper(substring(s, 1, 1)) == 'A') {
+                if (inverse) { 1.0 + x } else { 1.0 - x }
+            } else {
+                if (inverse) { 1.0 - x } else { 1.0 + x }
+            }
+        }
+    }
+
+    # build out scenario cases
+    scenarios.cases <- function(k, scenarios=c(NA, 'A', 'B', 'C', 'D', 'E')) {
+        # scenarios must have a default (NA)
+        stopifnot(sum(is.na(scenarios)) == 1)
+        
+        cases <- data.frame(scenario=scenarios)
+        cases$path[is.na(scenarios)] <- 'cases/default'
+        cases$path[!is.na(scenarios)] <- 
+            paste('cases/Scenario_', 
+                  cases$scenario[!is.na(scenarios)], sep='')
+        cases
+    }
+
+    # generate delta of global scores between default and new case
+    scenarios.compare <- function(cases, i, out.dir='.', f.diff=NULL) {
+        if (is.null(f.diff)) {
+            f.diff <- function(a, b) { 
+                ifelse(a==0 & b!=0,Inf,((b - a) / a))
+            }
+        }
+
+        # read data
+        scorefn <- 'results_global_scores.csv'
+        dir.1 <- cases$path[is.na(cases$scenario)]
+        dir.2 <- cases$path[[i]]
+        fn.1 <- file.path(dir.1, scorefn)
+        fn.2 <- file.path(dir.2, scorefn)
+        d.1 <- ohi.read.csv(fn.1)
+        d.2 <- ohi.read.csv(fn.2)
+
+        # load into matrix
+        goals <- names(d.1)[-(1:3)]
+        m.1 <- as.matrix(d.1[,goals])
+        m.2 <- as.matrix(d.2[,goals])
+
+        # run comparison
+        m.diff <- f.diff(m.1, m.2)
+
+        # write results
+        d.diff <- as.data.frame(cbind(d.1[,1:3], m.diff))
+        fn.diff <- paste(basename(dir.2), '.csv', sep='')
+        write.csv(d.diff, file.path(out.dir, fn.diff), row.names=F)
+        fn.diff
+    }
+
+    ###
+    # load zonal stats data from either GRASS or ArcGIS format
+    zstats.load <- function(fn, csv.format='GRASS', extract='mean') {
+        stopifnot(any(c('GRASS','ArcGIS') %in% c(csv.format)))
+        
+        if (csv.format == 'GRASS') {
+            d <- ohi.read.csv(fn, na.strings=c('*','-nan'))
+            names(d) <- tolower(names(d))
+            r <- data.frame(id=d[,'zone'], value=d[,tolower(extract)], n=d[,'non_null_cells'])
+        } else if (csv.format == 'ArcGIS') {
+            d <- ohi.read.csv(fn, na.strings='')
+            names(d) <- tolower(names(d))
+            r <- data.frame(id=d[,'value'], value=d[,extract], n=d[,'count'])
+        }
+        invisible(return(r))
+    }
+
+}
+
+
+# figures -----------------------------------------------------------------
+
+
+aster = function (lengths, widths, labels, disk=0.5, max.length,
+                   center=NULL, main=NULL, fill.col=NULL, plot.outline=TRUE,
+                   label.offset=0.15, xlim=c(-1.2, 1.2), ylim=c(-1.2, 1.2), uin=NULL,
+                   tol=0.04, cex=1, bty="n", lty=1, 
+                   label.col='black', label.font=3, label.cex=NULL, ...) {
+
+  # Custom R function to generate something akin to a rose plot in which
+  # the width and length of each petal are directly specified by the user.
+  # Or to put it differently, this is somewhat like a pie chart in which
+  # the radius of each wedge is allowed to vary (along with the angular
+  # width, as pie charts do). As an additional enhancement, one can
+  # specify a central disk of arbitrary radius (from 0 to 1, assuming that
+  # the plot itself is scaled to the unit circle), in which case the petal
+  # heights are always measured from the edge of the disk rather than the
+  # center of the circle; if desired, text can be added in the center.
+  #
+  # Although this kind of plot may already be well known in some circles
+  # (no pun intended), I haven't seen it clearly defined or labeled
+  # anywhere, so I'm anointing it an 'aster' plot because its component
+  # parts are reminiscent of composite flower morphology.
+  #
+  # As coded below, 'lengths' dictates how far out each petal extends,
+  # 'widths' dictates the (angular) width of each petal, and 'disk' gives
+  # the relative radius of a central donut hole. If no widths are
+  # provided, all petals will have equal widths. Additional function
+  # arguments can also control whether petals are labeled, whether the
+  # petal lengths are rescaled to the maximum score or to a user-input
+  # score, whether spokes delineating each petal are extended to an outer
+  # circle, and more. I also wrote a quick convenience wrapper for
+  # creating a legend plot.
+  #
+  # Note that the function here is a repurposed and very heavily modified
+  # version of the windrose() function contained in the 'circular'
+  # package, although sufficiently rewritten so as not to depend on any
+  # functionality in that package.
+  #
+  # Example invocations appear below.
+  #
+  # Jim Regetz
+  # NCEAS
+  # Created on 13-Sept-2011
+  #
+  # Mods by Ben Best and Darren Hardy
+  # December 2011
+  #  - fix blank hairlines between circles and polygons in pedals
+  #  - accepts more labeling and title options
+  #  - accepts data frames for lengths
+  #
+  # Example plots...
+  #
+  # # generate some fake data
+  # set.seed(1)
+  # scores <- sample(1:10)
+  # weights <- sample(1:10)
+  # labels <- paste(LETTERS[1:10], "X", sep="")
+  # 
+  # # do some plots
+  # png(file="aster-plots.png", height=600, width=600)
+  # par(mfrow=c(2,2), xpd=NA)
+  # aster(lengths=scores, widths=weights, disk=0, main="Example 1",
+  #     plot.outline=FALSE)
+  # aster(lengths=scores, widths=weights, labels=labels, main="Example 2",
+  #     lty=2, fill.col="gray", plot.outline=FALSE)
+  # aster.legend(labels=labels, widths=weights)
+  # aster(lengths=scores, widths=weights, disk=0.5, main="Example 3",
+  #     center="Hello world")
+  # dev.off()
+  # main aster function definition
+  
+  if (is.data.frame(lengths)) {
+    lengths <- as.numeric(lengths)
+  }
+  n.petals <- length(lengths)
+  if (missing(widths)) {
+    widths <- rep(1, n.petals)
+  }
+  if (missing(max.length)) {
+    max.length <- max(lengths)
+  }
+  if (missing(labels)) {
+    labels <- names(lengths)
+  }
+  if (missing(label.cex)) {
+    label.cex <- 0.7 * cex
+  }
+  
+  # determine radius of each petal
+  if (disk < 0 || 1 < disk) {
+    stop("disk radius must be between 0 and 1")
+  }
+  radii <- disk + (1-disk) * lengths/max.length
+  
+  # define inner function for drawing circles
+  # (from original windrose function)
+  circles <- function(rad, sector=c(0, 2 * pi), lty=2,
+                      col="white", border=NA, fill=FALSE) {
+    values <- seq(sector[1], sector[2], by=(sector[2] - sector[1])/360)
+    x <- rad * cos(values)
+    y <- rad * sin(values)
+    if (fill) {
+      polygon(x, y, xpd=FALSE, lty=lty, col=col, border=border)
+    }
+    lines(x, y, col=1, lty=lty)
+  }
+  
+  # lots of low-level positional details
+  # (from original windrose function)
+  op <- par(mar=c(1, 1, 2, 1))
+  mai <- par("mai")
+  on.exit(par(op))
+  midx <- 0.5 * (xlim[2] + xlim[1])
+  xlim <- midx + (1 + tol) * 0.5 * c(-1, 1) * (xlim[2] - xlim[1])
+  midy <- 0.5 * (ylim[2] + ylim[1])
+  ylim <- midy + (1 + tol) * 0.5 * c(-1, 1) * (ylim[2] - ylim[1])
+  oldpin <- par("pin") - c(mai[2] + mai[4], mai[1] + mai[3])
+  xuin <- oxuin <- oldpin[1]/diff(xlim)
+  yuin <- oyuin <- oldpin[2]/diff(ylim)
+  if (is.null(uin)) {
+    if (yuin > xuin) {
+      xuin <- yuin
+    } else {
+      yuin <- xuin
+    }
+  } else {
+    if (length(uin) == 1)
+      uin <- uin * c(1, 1)
+    if (any(c(xuin, yuin) < uin))
+      stop("uin is too large to fit plot in")
+    xuin <- uin[1]
+    yuin <- uin[2]
+  }
+  xlim <- midx + oxuin/xuin * c(-1, 1) * diff(xlim) * 0.5
+  ylim <- midy + oyuin/yuin * c(-1, 1) * diff(ylim) * 0.5
+  
+  # generate breaks (petal boundaries) based on the widths
+  breaks <- (2*pi*c(0, cumsum(widths))/sum(widths))[-(n.petals+1)]
+  breaks <- c(breaks, 2 * pi)
+  plot(c(-1.2, 1.2), c(-1.2, 1.2), xlab="", ylab="", main="",
+       xaxt="n", yaxt="n", pch=" ", xlim=xlim, ylim=ylim,
+       bty=bty, ...)
+  title(main=main, ...)
+  
+  # plot full petal outlines
+  if (plot.outline) {
+    # note: go to n.petals not n.breaks because we the last break is
+    # the same as the first
+    for (i in 1:n.petals) {
+      lines(c(0, cos(breaks[i])), c(0, sin(breaks[i])), lty=lty)
+    }
+    circles(1, lty=lty)
+  }
+  # plot the petals themselves
+  if (is.null(fill.col)) {
+    fill.col <- rainbow(n.petals)
+  }
+  fill.col <- rep(fill.col, length.out=n.petals)
+  for (i in 1:n.petals) {
+    w1 <- breaks[i]
+    w2 <- breaks[i + 1]
+    rad <- radii[i]
+    xx <- rad * c(0, cos(w1), cos(w2), 0)
+    yy <- rad * c(0, sin(w1), sin(w2), 0)
+    polygon(xx, yy, xpd=FALSE, col=fill.col[i], border=fill.col[i])
+    lines(xx[1:2], yy[1:2])
+    lines(xx[3:4], yy[3:4])
+    circles(rad=rad, sector=c(w1, w2), fill=TRUE,
+            lty=1, col=fill.col[i], border=fill.col[i])
+  }
+  # plot petal labels, if given
+  if (!is.null(labels)) {
+    if (plot.outline) {
+      height <- label.offset + rep(1, n.petals)
+    } else {
+      height <- label.offset + radii
+    }
+    mids <- breaks[1:n.petals] + diff(breaks)/2
+    for (i in 1:n.petals) {
+      text(height[i] * cos(mids[i]), height[i] * sin(mids[i]),
+           labels=labels[i], cex=label.cex, 
+           font=label.font, col=label.col)
+    }
+  }
+  
+  # add disk, if desired, with optional text in the middle
+  if (0 < disk) {
+    circles(disk, fill=TRUE, lty=1)
+  }
+  if (!is.null(center)) {
+    text(0, 0, labels=center, font=2, cex=2.2*cex)
+  }
+  invisible(NULL)
+}
+
+
+# wrapper function to generate an aster plot to serve as a legend
+aster.legend <- function(labels, ...) {
+  aster(lengths=rep(1, length(labels)), labels=labels,
+        plot.outline=FALSE, bty="o", ...)
+  text(x=par("usr")[1]+0.25, y=par("usr")[4]-0.1, labels="Legend", font=4)
+}
+
+

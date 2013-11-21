@@ -1,0 +1,15 @@
+Package: ohi
+Version: 0.9.12
+Date: 2013-06-15
+Title: Ocean Health Index
+Author: "Ben Best" <bbest@nceas.ucsb.edu>, with past contributions from "Darren Hardy" <drh@stanford.edu> 
+Maintainer: "Ben Best" <bbest@nceas.ucsb.edu>
+Depends: R (>= 2.10)
+Imports: ggplot2 (>= 0.9), knitr (>= 1.1), markdown (>= 0.5.4), pander (>= 0.3.1), plyr (>= 1.8), RColorBrewer (>=
+             1.0), RJSONIO (>= 1.0), reshape (>= 0.8), reshape2 (>= 1.2), shiny (>= 0.6.0), utils (>= 3.0)
+Description: Data and methods for Ocean Health Index.
+    This release is **LIMITED DISTRIBUTION**.
+    ***DO NOT DISTRIBUTE*** without express written consent.
+License: file LICENSE
+Collate: ohi.R
+Packaged: 2013-06-20 06:56:26 UTC; bbest
