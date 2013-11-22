@@ -20,7 +20,7 @@ ohi.global.regions.highseas
 \seealso{merge}
 \examples{
 d <- data.frame(id=1:50, status=runif(50, 0, 1))
-allregions(d) # returns status=NA for all but the first 50 regions
+#allregions(d) # returns status=NA for all but the first 50 regions
 ohi.load('regions_details')
 }
 \keyword{ohi}

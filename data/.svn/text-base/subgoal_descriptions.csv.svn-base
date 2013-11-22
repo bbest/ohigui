@@ -1,9 +1,0 @@
-o,code,parent_code,goal,component,label
-8,SPP,BD,biodiversity,species,Species
-7,HAB,BD,biodiversity,habitats,Habitats
-1,FIS,FP,foodprovision,fishing,Fisheries
-2,MAR,FP,foodprovision,mariculture,Mariculture
-4,ECO,LE,livelihoods,economy,Economies
-3,LIV,LE,livelihoods,livelihood,Livelihoods
-5,ICO,SP,senseofplace,iconicspecies,Iconic Species
-6,LSP,SP,senseofplace,lastingspecialplaces,Lasting Special Places

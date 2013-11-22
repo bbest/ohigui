@@ -1982,44 +1982,6 @@ if (getOption('debug', FALSE) && getOption('unit.test', FALSE)) {
     stopifnot(score.clamp(c(-0.5, 0.0, 0.5, 1.0, 1.5)) == c(0, 0, 0.5, 1, 1))
 }
 
-# shiny app ------------------------------------------------------------------
-launchApp = function(config.R){
-  # library(devtools); la = function() {load_all('/usr/local/ohi/src/R/ohi')}; la()
-  # R -e "install.packages('/usr/local/ohi/src/R/ohi_0.9.12.tar.gz', repos=NULL, type='source')"
-  # launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
-  # R -e "ohi::launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')"
-  
-  load.config(config.R)
-  dir.app = system.file('shiny_app', package='ohigui')
-  shiny::runApp(dir.app)
-}
-
-load.config = function(config.R){
-  # read configuration
-  if (!file.exists(config.R)) stop(cat('The file config.R does not exist here: ',config.R))
-  config.R <<- config.R # make global
-  source(config.R)  
-    
-  # check for existence of files and folders set in config.R
-  dirs  = c('dir.data','dir.conf','dir.scenario','dir.scenarios','dir.results')
-  files = c('functions.R','goals.csv','layers_navigation.csv','pressures_matrix.csv','resilience_matrix.csv','resilience_weights.csv')
-  for (v in c(dirs,files)){
-    if (!exists(v)) stop(sprintf('Path variable %s not set in config.R (%s)',v,config.R))
-    p = get(v)
-    if (is.na(file.info(p)$isdir)) stop(sprintf('Path %s=%s does not exist on filesystem as set in config.R (%s)',v,p,config.R))
-  }
-  
-  # TODO: check for existence of required variables like resilience_components, pressures_components 
-}
-
-config.summary = function(config.R, indent='  '){
-  files = c('goals.csv','layers_navigation.csv','pressures_matrix.csv','resilience_matrix.csv','resilience_weights.csv')
-  for (f in files){
-    cat(indent,f,': PASS\n',sep='')
-  }  
-}
-
-
 # extras ------------------------------------------------------------------
 
 if (getOption('ohi.extras', TRUE)) {

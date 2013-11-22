@@ -5,7 +5,6 @@ Title: Ocean Health Index - Graphical User Interface
 Author: Ben Best <bbest@nceas.ucsb.edu>, with past contributions from Darren
     Hardy <drh@stanford.edu>
 Maintainer: Ben Best <bbest@nceas.ucsb.edu>
-URL: http://ohi-science.org
 Depends:
     R (>= 3.0.1)
 Imports:
@@ -26,7 +25,4 @@ License: MIT
 LazyData: true
 Collate:
     'ohi.R'
-    'launchApp.R'
-    'load.config.R'
-    'config.summary.R'
 Packaged: 2013-06-20 06:56:26 UTC; bbest

@@ -1,17 +1,22 @@
 \name{launchApp}
 \alias{launchApp}
-\title{Ocean Health Index: Launch Application}
-\description{Launch a graphical user interface to inspect and do basic calculations of OHI.}
+\title{Launch the browser application}
 \usage{
-launchApp(config.R)
+  launchApp(config.R, ...)
 }
 \arguments{
-    \item{config.R}{Full path to the configuration file. See Details below.}
+  \item{config.R}{path to configuration file}
+
+  \item{...}{arguments passed to \code{shiny::runApp}}
 }
-\value{Opens an application in your local browser using the Shiny R package to interface between the web browser and R.}
+\description{
+  This function loads the specified configuration with
+  \code{\link{load.config}} and launches the web browser
+  using \code{\link{shiny::runApp}}. [TODO: specify needed
+  config.R format in seperate help file.]
+}
 \examples{
-\dontrun{
-  launchApp('~/ohi/scenarios/global_2012_nature/conf/config.R')
+launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
 }
-}
-\keyword{ohi}
+\keyword{app}
+

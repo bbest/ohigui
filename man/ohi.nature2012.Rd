@@ -19,7 +19,7 @@ This data set contains the scores and model outputs from the Ocean Health Index 
 \examples{
 options(max.print=10)
 options(digits=3)
-data(ohi.nature2012, package='ohi')
+data(ohi.nature2012, package='ohigui')
 
 ## Find the Region ID number for the United States
 region_id <- with(ohi.nature2012$regions, id[label == "United States"])
