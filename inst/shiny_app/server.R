@@ -147,7 +147,7 @@ shinyServer(function(input, output, session) {
     } else {
       config.R = file.path(dir.scenarios, input$dir_scenario, 'conf','config.R')  
     }    
-    config.check(config.R)
+    #config.check(config.R)
     config.summary(config.R)
   })
    

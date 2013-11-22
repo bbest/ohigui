@@ -10,6 +10,10 @@
 # TODO: check as package to drop inst path in inst/shiny_app/server.R:
 #       source(system.file('inst/scripts/load_data.r',package='ohi'), local=T, echo=F)
 
+# ohigui:
+#   library(ohigui); launchApp('~/ohi_tbx/scenarios/global_2013a/conf/config_2013a.R')
+
+
 # DEVTOOLS (https://github.com/hadley/devtools/wiki):
 #   ldohi = function(){load_all('/usr/local/ohi/src/R/ohi')}; ldohi()
 #   library(devtools); la = function() {load_all('/usr/local/ohi/src/R/ohi'); launchApp('~/ohi_tbx/scenarios/global_2012_nature/conf/config.R')}; la()
@@ -1986,7 +1990,7 @@ launchApp = function(config.R){
   # R -e "ohi::launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')"
   
   load.config(config.R)
-  dir.app = system.file('shiny_app', package='ohi')
+  dir.app = system.file('shiny_app', package='ohigui')
   shiny::runApp(dir.app)
 }
 

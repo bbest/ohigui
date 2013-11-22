@@ -74,7 +74,9 @@
 
 # get list of layers
 layers_navigation = read.csv(layers_navigation.csv, na.strings='')
-varChoices = sort(subset(layers_navigation, id_num=='region_id' & !is.na(value_num) & is.na(category) & is.na(year), layer, drop=T))
+# TODO: expand list to alternate scenario ids: region_id, rgn_id, country_id, cntry_id, saup_id.
+# TODO: expand list to goal/dimension/...
+varChoices = sort(subset(layers_navigation, id_num==layers_id_fields[1] & !is.na(value_num) & is.na(category) & is.na(year), layer, drop=T))
 #browser()
 names(varChoices) = varChoices
 
