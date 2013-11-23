@@ -1,8 +1,8 @@
 \name{AggregateLayers}
+\alias{AggregateLayers}
 \alias{aggregate_by_country}
 \alias{aggregate_by_country_weighted}
 \alias{aggregate_by_country_year}
-\alias{AggregateLayers}
 \title{Aggregate Layers}
 \usage{
   aggregate_by_country(df, col.value = "value",
