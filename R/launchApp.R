@@ -9,7 +9,9 @@
 #' @keywords app
 #' @export
 #' @examples
+#' \dontrun{
 #' launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
+#' }
 launchApp = function(config.R, ...){  
   load.config(config.R)
   shiny::runApp(system.file('shiny_app', package='ohigui'), ...)

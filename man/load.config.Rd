@@ -13,7 +13,9 @@
   format in seperate help file.]
 }
 \examples{
+\dontrun{
 load.config('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
+}
 }
 \keyword{app}
 

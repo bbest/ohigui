@@ -7,7 +7,9 @@
 #' @keywords app
 #' @export
 #' @examples
+#' \dontrun{
 #' load.config('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
+#' }
 load.config = function(config.R){
   
   # read configuration

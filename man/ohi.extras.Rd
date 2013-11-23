@@ -1,28 +1,35 @@
-\name{ohi-tbd}
+\name{ohi.extras}
 \alias{apply.bycol}
 \alias{apply.byrow}
 \alias{ends.with}
 \alias{mangle}
+\alias{md.table}
+\alias{ohi.extras}
 \alias{ohi.find.file}
+\alias{ohi.goal.to.old.goal.component}
 \alias{ohi.model.keys}
+\alias{ohi.old.goal.component}
+\alias{ohi.old.goal.component.to.goal}
 \alias{ohi.options}
 \alias{ohi.write.results}
 \alias{pkey}
+\alias{scenario.to.beta}
 \alias{scenarios.cases}
 \alias{scenarios.compare}
-\alias{scenario.to.beta}
 \alias{starts.with}
 \alias{vcat}
 \alias{zstats.load}
-\alias{md.table}
-\alias{ohi.old.goal.component}
-\alias{ohi.goal.to.old.goal.component}
-\alias{ohi.old.goal.component.to.goal}
 \title{Ocean Health Index: TBD}
-\description{TBD}
-\usage{
-pkey
+\source{
+  tbd
 }
-\source{tbd}
-\references{tbd}
-\examples{Sys.info()}
+\description{
+  TBD
+}
+\examples{
+Sys.info()
+}
+\references{
+  tbd
+}
+
