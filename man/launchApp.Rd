@@ -2,7 +2,8 @@
 \alias{launchApp}
 \title{Launch the browser application}
 \usage{
-  launchApp(config.R, ...)
+  launchApp(scenario = list(conf = ohicore::conf.Global2013.www2013, layers = ohicore::layers.Global2013.www2013, scores = ohicore::scores.Global2013.www2013, shapes = system.file("inst/extdata/shapes.www2013", package = "ohicore"), dir = path.expand("~/myohi/scenario.Global2013.www2013")),
+    ...)
 }
 \arguments{
   \item{config.R}{path to configuration file}
@@ -17,7 +18,11 @@
 }
 \examples{
 \dontrun{
-launchApp('/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R')
+# for now, must make objects global
+conf   <<-
+layers = layers.Global2013.www2013
+scores = scores.Global2013.www2013
+launchApp(conf.Global2013.www2013, layers, scores)
 }
 }
 \keyword{app}

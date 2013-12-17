@@ -18,34 +18,11 @@ var cloudmade = L.tileLayer('http://{s}.tile.cloudmade.com/{key}/{styleId}/256/{
 	styleId: 22677
 }).addTo(map);
 
-
-// get field value from drop-down with id 'var'
-fld = document.getElementById('var').value // 'alien_species';
-fld_arr = ohiRegions.features.map(function(element, index, array){ return element.properties[fld] })
-fld_min = Math.min.apply(Math, fld_arr)
-fld_max = Math.max.apply(Math, fld_arr)
-fld_incr = (fld_max - fld_min) / 8
-var fld_incr_arr = [fld_min];
-for (i=1; i<=7; i++){
-	fld_incr_arr.push(fld_min + i * fld_incr)
-};
-
-// control that shows state info on hover
-var info = L.control();
-info.onAdd = function (map) {
-	this._div = L.DomUtil.create('div', 'info');
-	this.update();
-	return this._div;
-};
-info.update = function (props) {
-	this._div.innerHTML = '<h4>OHI Inspector</h4>' +  (props ?
-		props['region_id'] + ': <b>' + props[fld] + '</b>'
-		: 'Hover over a region');
-};
-info.addTo(map);
-
 // get color depending on population density value
 function getColor(d) {
+	fld_min = 1;
+	fld_max = 255;
+	fld_incr = 31.75;
 	return d > (fld_min + fld_incr * 7) ? '#800026' :
 	       d > (fld_min + fld_incr * 6) ? '#BD0026' :
 	       d > (fld_min + fld_incr * 5) ? '#E31A1C' :
@@ -63,9 +40,105 @@ function style(feature) {
 		color: 'white',
 		dashArray: '3',
 		fillOpacity: 0.7,
-		fillColor: getColor(feature.properties[fld])
+		//fillColor: getColor(feature.properties[fld])
+		fillColor: getColor(feature.properties['region_id'])
 	};
 }
+
+function onEachFeature(feature, layer) {
+	layer.on({
+		mouseover: highlightFeature,
+		mouseout: resetHighlight,
+		click: zoomToFeature
+	});
+}
+
+// shapefile approach
+var shpfile = new L.Shapefile('/data/congress.zip',{onEachFeature:function(feature, layer) {
+    	if (feature.properties) {
+			layer.bindPopup(Object.keys(feature.properties).map(function(k){
+				return k + ": " + feature.properties[k] ;
+			}).join("<br />"),{maxHeight:200});
+    	}
+	}});
+shpfile.addTo(map);
+
+// direct read approach
+// var xhReq = new XMLHttpRequest();
+// xhReq.open("GET", yourUrl, false);
+// xhReq.send(null);
+// var jsonObject = JSON.parse(xhReq.responseText);
+
+function refreshLayer(){
+
+	if (typeof regionsLayer != 'undefined'){
+		regionsLayer.clearLayers();
+	};
+	$('div.info.legend.leaflet-control').remove()
+
+	$.getJSON('/data/rgn_simple_gcs.json', function(data){
+
+		// add regions layer
+		regionsLayer = new L.GeoJSON(data, {
+			style: style,
+			onEachFeature: onEachFeature }).addTo(map)
+
+		// get field value from drop-down with id 'var'
+		fld = document.getElementById('var').value // 'alien_species';
+
+		// get field increments for legend
+		var fld_arr = data.features.map( function(feature) { return feature.properties['region_id']; } );
+		fld_min = Math.min.apply(Math, fld_arr)
+		fld_max = Math.max.apply(Math, fld_arr)
+		fld_incr = (fld_max - fld_min) / 8
+		var fld_incr_arr = [fld_min];
+		for (i=1; i<=7; i++){
+			fld_incr_arr.push(fld_min + i * fld_incr)
+		};
+
+		// legend
+		var legend = L.control({position: 'bottomright'});
+		
+		legend.update = function (props) {
+			labels = ['<b>'+fld+'</b>'];
+			for (var i = 0; i < fld_incr_arr.length; i++) {
+				from = fld_incr_arr[i];
+				to = fld_incr_arr[i + 1];
+				labels.push(
+					'<i style="background:' + getColor(from) + '"></i> ' +
+					from + (to ? '&ndash;' + to : '&ndash;' + fld_max));
+			}
+			this._div.innerHTML = labels.join('<br>');
+		}
+
+		// add legend
+		legend.onAdd = function (map) {
+			this._div = L.DomUtil.create('div', 'info legend');
+			this.update()
+			return this._div;
+		};
+		legend.addTo(map)
+		
+	});
+};
+
+map.attributionControl.addAttribution('<a href="http://www.oceanhealthindex.org/">Ocean Health Index</a>');
+
+
+// control that shows state info on hover
+var info = L.control({position: 'topright'});
+info.onAdd = function (map) {
+	this._div = L.DomUtil.create('div', 'info');
+	this.update();
+	return this._div;
+};
+info.update = function (props) {
+	this._div.innerHTML = '<h4>OHI Inspector</h4>' +  (props ?
+		props['region_id'] + ': <b>' + props[fld] + '</b>'
+		: 'Hover over a region');
+};
+info.addTo(map);
+
 
 function highlightFeature(e) {
 	var layer = e.target;
@@ -85,7 +158,7 @@ function highlightFeature(e) {
 }
 
 function resetHighlight(e) {
-	geojson.resetStyle(e.target);
+	regionsLayer.resetStyle(e.target);
 	info.update();
 }
 
@@ -93,41 +166,7 @@ function zoomToFeature(e) {
 	map.fitBounds(e.target.getBounds());
 }
 
-function onEachFeature(feature, layer) {
-	layer.on({
-		mouseover: highlightFeature,
-		mouseout: resetHighlight,
-		click: zoomToFeature
-	});
-}
 
-geojson = L.geoJson(ohiRegions, {
-	style: style,
-	onEachFeature: onEachFeature
-}).addTo(map);
-map.attributionControl.addAttribution('<a href="http://www.oceanhealthindex.org/">Ocean Health Index</a>');
-
-var legend = L.control({position: 'bottomright'});
-legend.onAdd = function (map) {
-
-	var div = L.DomUtil.create('div', 'info legend'),
-		grades = fld_incr_arr,			
-		labels = ['<b>'+fld+'</b>'],
-		from, to;
-
-	for (var i = 0; i < grades.length; i++) {
-		from = grades[i];
-		to = grades[i + 1];
-
-		labels.push(
-			'<i style="background:' + getColor(from) + '"></i> ' +
-			from + (to ? '&ndash;' + to : '&ndash;' + fld_max));
-	}
-
-	div.innerHTML = labels.join('<br>');
-	return div;
-};
-legend.addTo(map);
 
 /* Shiny bindings */
 
@@ -137,25 +176,33 @@ $.extend(mapOutputBinding, {
 		return $(scope).find('.shiny-map-output');
 	},
 	renderValue: function(el, data) {
-		fld = data;
+		refreshLayer();
+		//fld = data;
 		// redraw map and legend based on chosen variable
+		
+		// var fld_arr = new Array();
+		// for (var i in regions.features) { fld_arr.push(regions.features[i].feature.properties['region_id']) }
 
-		fld_arr = ohiRegions.features.map(function(element, index, array){ return element.properties[fld] })
-		fld_min = Math.min.apply(Math, fld_arr)
-		fld_max = Math.max.apply(Math, fld_arr)
-		fld_incr = (fld_max - fld_min) / 8
-		var fld_incr_arr = [fld_min];
-		for (i=1; i<=7; i++){
-			fld_incr_arr.push(fld_min + i * fld_incr)
-		};
+		// var fld_arr = regions.features.map( function(feature) { return feature.properties.region_id; } );
 
-		legend.removeFrom(map)
-		legend.addTo(map)
-		geojson.clearLayers()
-		geojson = L.geoJson(ohiRegions, {
-					style: style,
-					onEachFeature: onEachFeature
-				}).addTo(map);
+		// fld_min = Math.min.apply(Math, fld_arr)
+		// fld_max = Math.max.apply(Math, fld_arr)
+		// fld_incr = (fld_max - fld_min) / 8
+		// var fld_incr_arr = [fld_min];
+		// for (i=1; i<=7; i++){
+		// 	fld_incr_arr.push(fld_min + i * fld_incr)
+		// };
+
+		//legend.removeFrom(map);
+		//legend.addTo(map);
+
+
+		// regions.clearLayers()
+		// regions = L.GeoJSON.AJAX('data/rgn_simple_gcs.json', {
+		// 			style: style,
+		// 			onEachFeature: onEachFeature
+		// 		}).addTo(map);
+
 	} // end renderValue: function(el, data) {
 }); // end $.extend(networkOutputBinding, {
 	

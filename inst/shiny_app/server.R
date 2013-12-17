@@ -2,19 +2,20 @@
 # presume config.R already sourced by ohi::launchApp(config.R) and set needed variables
 
 # TODO: get all layers to include those with other ids
-layers_navigation = read.csv(layers_navigation.csv, na.strings='')
-layers_data = read.csv(layers_data.csv, na.strings='')
+#layers_navigation = read.csv(layers_navigation.csv, na.strings='')
+#layers_data = read.csv(layers_data.csv, na.strings='')
+layers_data = ohicore::SelectLayersData(layers)
 
 # get goals for aster, all and specific to weights
-goals.all = read.csv(goals.csv)
-goals.all = goals.all[order(goals.all$order), 'id']
+goals.all = conf$goals # read.csv(goals.csv)
+goals.all = goals.all[order(goals.all$order), 'goal']
 
 # get colors for aster, based on 10 colors, but extended to all goals. subselect for goals.wts
 cols.goals.all = colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'), space='Lab')(length(goals.all))
 names(cols.goals.all) = goals.all
 
 # get results for aster
-regions_goals = read.csv(regions_goals.csv)
+#regions_goals = read.csv(regions_goals.csv)
 
 # helper functions ----
 get_wts = function(input){
@@ -45,7 +46,9 @@ captilize <- function(s) { # capitalize first letter
 
 # reactiveValues ----
 values = reactiveValues()
-values$dirs_scenarios <- grep('^[^\\.]', basename(list.dirs(path=dir.scenarios, recursive=F)), value=T)
+#values$dirs_scenarios <- grep('^[^\\.]', basename(list.dirs(path=dir.scenarios, recursive=F)), value=T)
+if (!exists('dir.scenarios')) dir.scenarios = system.file('extdata', package='ohicore')
+values$dirs_scenarios <- grep('^conf\\.', basename(list.dirs(path=dir.scenarios, recursive=F)), value=T)
 
 # shinyServer ----
 # Define server logic required to summarize and view the selected dataset
@@ -114,7 +117,8 @@ shinyServer(function(input, output, session) {
     
     # get data from results, so far assuming first line of results/regions_goals.csv
     # TODO: add dropdowns for: 1) different regions, 2) different schemes (ie weights)
-    scores.wts  = regions_goals[1, goals.wts]
+    x = subset(scores, dimension=='score' & region_id==0)
+    scores.wts  = x$score[match(names(wts), as.character(x$goal))] # regions_goals[1, goals.wts]
     index.score = weighted.mean(scores.wts, wts)
     
     # plot aster
