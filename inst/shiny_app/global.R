@@ -1,4 +1,4 @@
-require(shiny); require(RJSONIO); require(rCharts); require(RColorBrewer); require(ohicore)
+require(shiny); require(RJSONIO); require(rCharts); require(RColorBrewer); require(ohicore); require(ohigui)
 options(stringsAsFactors = F)
 options(error=NULL)
 # see launchApp(), makes global variables: conf, layers, scores, dir_shapes, dir_scenario
