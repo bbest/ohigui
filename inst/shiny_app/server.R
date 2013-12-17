@@ -1,10 +1,4 @@
-# initialize ----
-# presume config.R already sourced by ohi::launchApp(config.R) and set needed variables
-
-# TODO: get all layers to include those with other ids
-#layers_navigation = read.csv(layers_navigation.csv, na.strings='')
-#layers_data = read.csv(layers_data.csv, na.strings='')
-layers_data = ohicore::SelectLayersData(layers)
+# see global.R
 
 # get goals for aster, all and specific to weights
 goals.all = conf$goals # read.csv(goals.csv)
@@ -13,9 +7,6 @@ goals.all = goals.all[order(goals.all$order), 'goal']
 # get colors for aster, based on 10 colors, but extended to all goals. subselect for goals.wts
 cols.goals.all = colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'), space='Lab')(length(goals.all))
 names(cols.goals.all) = goals.all
-
-# get results for aster
-#regions_goals = read.csv(regions_goals.csv)
 
 # helper functions ----
 get_wts = function(input){
@@ -46,9 +37,8 @@ captilize <- function(s) { # capitalize first letter
 
 # reactiveValues ----
 values = reactiveValues()
-#values$dirs_scenarios <- grep('^[^\\.]', basename(list.dirs(path=dir.scenarios, recursive=F)), value=T)
-if (!exists('dir.scenarios')) dir.scenarios = system.file('extdata', package='ohicore')
-values$dirs_scenarios <- grep('^conf\\.', basename(list.dirs(path=dir.scenarios, recursive=F)), value=T)
+dir_scenarios = dirname(dir_scenario)
+values$dirs_scenario <- grep('^scenario\\.', list.dirs(path=dir_scenarios, recursive=F), value=T)
 
 # shinyServer ----
 # Define server logic required to summarize and view the selected dataset
@@ -58,36 +48,30 @@ shinyServer(function(input, output, session) {
   # monitor filesystem every 5 seconds for folders in dir.conf
   observe({
     invalidateLater(5 * 1000, session)  # 5 seconds, in milliseconds
-    values$dirs_scenarios <- grep('^[^\\.]', basename(list.dirs(path=dir.scenarios, recursive=F)), value=T)
+    values$dirs_scenario <- grep('^[^\\.]', basename(list.dirs(path=dir_scenarios, recursive=F)), value=T)
   })
   
-  # Layers: layer_data() ----
-  layer_data <- reactive({
-    subset(layers_data, layer==input$var)
-#     read.csv.sql(layers_data.csv, 
-#                  sprintf("SELECT * FROM file WHERE layer ='%s'", input$var))
+  # Layers: get_var_data() ----
+  get_var_data <- reactive({
+    plyr::rename(ohicore::SelectLayersData(layers, layers=input$var, narrow=T), c('id_num'='rgn_id'))
   })
   
   # Layers: map ----
-  output$map <- reactive({ input$var })
+  output$map_container <- renderMap({
+    plotMap(var=input$var, var_data=get_var_data())
+    }, html_sub = c('"features": "#! regions !#",' = '"features": regions,'))
   
   # Layers: histogram ----
   output$histogram <- renderPlot({
     library(ggplot2)
     
-    # # DEBUG
-    # config.R = '/usr/local/ohi/src/toolbox/scenarios/global_2012_nature/conf/config.R'
-    # config.check(config.R)
-    # layers_data = read.csv(layers_data.csv, na.strings='')    
-    # input_var = 'alien_species'
-    
     # get input data
-    d = layer_data()
+    d = get_var_data()
     input_var = input$var
-    bin.width = diff(range(d[,'value_num']))/30
+    bin.width = diff(range(d[,'val_num']))/30
     
     # Histogram overlaid with kernel density curve
-    p = ggplot(d, aes(x=value_num))
+    p = ggplot(d, aes(x=val_num))
     p = p + geom_histogram(aes(y=..density..),      # Histogram with density instead of count on y-axis
                            binwidth=bin.width,
                            colour="black", fill="white") +
@@ -97,14 +81,17 @@ shinyServer(function(input, output, session) {
   
   # Layers: summary ----
   output$summary <- renderPrint({
-    summary(layer_data()[,'value_num'], digits=3)
+    summary(get_var_data()[,'val_num'], digits=3)
   })
   
   # Layers: table ----
   output$table <- renderTable({
-    flds = subset(layers_navigation, layer==input$var)[, c('id_num','id_chr','category','year','value_num','value_chr')]
-    flds = flds[, !is.na(flds), drop=F]
-    ld = plyr::rename(layer_data()[,names(flds)], setNames(flds, names(flds)))
+    #flds = subset(layers_navigation, layer==input$var)[, c('id_num','id_chr','category','year','value_num','value_chr')]
+    d = layers$data[[input$var]]
+    d = d[,names(d)!='layer']
+    d
+    #flds = flds[, !is.na(flds), drop=F]
+    #ld = plyr::rename(get_var_data()[,names(flds)], setNames(flds, names(flds)))
   }, include.rownames=F)
 
   # Goals: aster ----
@@ -139,20 +126,20 @@ shinyServer(function(input, output, session) {
   
   # Calculate: sel_scenario_dir ----
   output$sel_scenario_dir <- renderUI({
-    selectInput("dir_scenario", sprintf("Select scenario (from %s):",dir.scenarios), 
-                values$dirs_scenarios, selected=basename(dir.scenario))
+    selectInput("dir_scenario", sprintf("Select scenario (from %s):", dir_scenarios), 
+                values$dirs_scenario, selected=basename(dir_scenario))
   })
    
   # Calculate: txt_conf_summary ----
   output$txt_conf_summary <- renderPrint({
     cat('Scenario:', input$dir_scenario,'\n')
     if (is.null(input$dir_scenario)){
-      config.R = file.path(dir.scenario, 'conf','config.R')  
+      config.R = file.path(dir_scenarios, 'conf','config.R')  
     } else {
-      config.R = file.path(dir.scenarios, input$dir_scenario, 'conf','config.R')  
+      config.R = file.path(dir_scenarios, input$dir_scenario, 'conf','config.R')  
     }    
     #config.check(config.R)
-    config.summary(config.R)
+    #config.summary(config.R)
   })
    
    # Calculate: txt_calc_summary ----
@@ -171,7 +158,7 @@ shinyServer(function(input, output, session) {
   # Report: sel_compare ----
   output$sel_compare <- renderUI({
     selectInput("dir_compare", "Compare with scenario:", 
-                c('[None]',setdiff(values$dirs_scenarios, basename(dir.scenario))), 
+                c('[None]',setdiff(values$dirs_scenario, basename(dir_scenarios))), 
                 selected='[None]')
   })
   

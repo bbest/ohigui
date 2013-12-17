@@ -1,5 +1,4 @@
-# OHI Toolbox Application - Shiny user interface
-#  R -e "ohi::launchApp('~/ohi_tbx/scenarios/global_2012_nature/conf/config.R')"
+# see global.R
 
 # get list of layers
 varChoices = as.character(sort(subset(layers$meta, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr), layer, drop=T)))
@@ -13,30 +12,10 @@ smax = 1 # max for goals slider inputs
 #---- customize for leaflet map
 customHeaderPanel <- function(title,windowTitle=title){
   tagList(tags$head(
-      tags$title(windowTitle),
-      tags$link(rel="stylesheet", type="text/css", href="/css/tree.css")))}
-
-reactiveMap <- function (outputId){
-  tagList(  
-    singleton(tags$head(tags$link(rel="stylesheet", type="text/css", href="css/leaflet.css"   ))),
-    singleton(tags$head(tags$link(rel="stylesheet", type="text/css", href="css/ohi_map.css"))),
-    
-    tags$body(
-      tags$script(src="js/leaflet-src.js",     type='text/javascript'),
-      tags$script(src="js/leaflet.ajax.js",    type='text/javascript'),
+    tags$title(windowTitle),
+    tags$link(rel="stylesheet", type="text/css", href="/css/tree.css"),
+    tags$script(src='shapes/regions_gcs.js')))}      # assume regions geojson variable set by shapes/regions_gcs.js
       
-      tags$script(src="js/shp.js",             type='text/javascript'),
-      tags$script(src="js/leaflet.shpfile.js", type='text/javascript'),
-      
-      tags$div(id=outputId, class='map_container'),
-      tags$script(src='data/regions_gcs.js'),      # preload regions geojson variable
-      #tags$script(type="application/json", class="map_data",
-      #            ifelse(is.null(map_data), "{}", RJSONIO::toJSON(map_data))),
-      #tags$script(src="js/shinymap.js",        type='text/javascript')   # note: must call shinymap after div tag with id already set
-    )
-  )    
-}
-
 #---- define ui
 shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: pageWithSidebar
   div(class= "row-fluid", customHeaderPanel("OHI App")), # alternate to: headerPanel  
@@ -48,7 +27,7 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
       ),  
       mainPanel(id='data-main',
         tabsetPanel(id='tabsetMap',
-          tabPanel('Map',       value='data-map',       reactiveMap(outputId = "map")),                                       
+          tabPanel('Map',       value='data-map',       mapOutput('map_container')),                                       
           tabPanel('Histogram', value='data-histogram', plotOutput('histogram')),
           tabPanel('Summary',   value='data-summary',   verbatimTextOutput('summary')), 
           tabPanel('Table',     value='data-table',     tableOutput('table'))))))
