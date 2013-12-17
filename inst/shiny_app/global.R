@@ -17,7 +17,7 @@ getMapData = function(var_data){
 }
 
 # plot map
-plotMap = function(var, var_data, width=1600, height=800){  
+plotMap = function(var, var_data, width=1200, height=800){  
   
   d = getMapData(var_data)
   
