@@ -1,7 +1,8 @@
 # see global.R
 
 # get list of layers
-varChoices = as.character(sort(subset(layers$meta, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr), layer, drop=T)))
+varLayers = as.character(sort(subset(layers$meta, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr), layer, drop=T)))
+varScores = as.vector(apply(unique(scores[,c('goal','dimension')]), 1, function(x) sprintf('%s - %s', x[1], x[2])))
 
 # add dir for regions
 addResourcePath('shapes', path.expand(dir_shapes))
@@ -22,18 +23,24 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
   div(class = "row-fluid", tabsetPanel(id='tabsetFunction',    # alternate to: mainPanel                                                                             
     tabPanel('Data', value='data', conditionalPanel(condition="input.tabsetFunction == 'data'",
       sidebarPanel(id='data-sidebar',
-        selectInput(inputId='var', label='Choose a variable:', choices=varChoices)
+        selectInput(inputId='varType', label='Choose variable type:', choices=c('Score','Layer'), selected='Score'),
+        conditionalPanel(condition="input.varType == 'Layer'",
+          selectInput(inputId='varLayer', label='Choose layer:', choices=varLayers)),
+        conditionalPanel(condition="input.varType == 'Score'",
+          selectInput(inputId='varScore', label='Choose goal - dimension:', choices=varScores, selected='Index - score')),
+        verbatimTextOutput(outputId="txt_var_info")),
         # TODO: use Select2 combo boxes and search field, see https://github.com/mostly-harmless/select2shiny
-      ),  
+                                                    
+                                                    
       mainPanel(id='data-main',
         tabsetPanel(id='tabsetMap',
           tabPanel('Map',       value='data-map',       mapOutput('map_container')),                                       
           tabPanel('Histogram', value='data-histogram', plotOutput('histogram')),
-          tabPanel('Summary',   value='data-summary',   verbatimTextOutput('summary')), 
-          tabPanel('Table',     value='data-table',     tableOutput('table'))))))
-                                       ,  
-    tabPanel('Goals', value='goals',        
-       sidebarPanel(id='goal-sidbar', 
+          #tabPanel('Summary',   value='data-summary',   verbatimTextOutput('summary')),                     
+          tabPanel('Table',     value='data-table',     dataTableOutput('table'), style='overflow:auto; height:850px'))))),
+                                       
+    tabPanel('Goals', value='goals', 
+       sidebarPanel(id='goal-sidbar', style='overflow:auto; height:850px',                     
         strong('Food Provision:'),
           sliderInput("MAR","Mariculture:"                 , min=0, max=smax, value=0.5, step=0.1),
           sliderInput("FIS","Fisheries:"                   , min=0, max=smax, value=0.5, step=0.1),br(),     
@@ -53,16 +60,23 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
           sliderInput("HAB","Habitats:"                    , min=0, max=smax, value=0.5, step=0.1),
           sliderInput("SPP","Species:"                     , min=0, max=smax, value=0.5, step=0.1)
        ),
-       mainPanel(id='goal-main', style='height:850px', plotOutput('aster'))),
+       mainPanel(id='goal-main', style='overflow:auto; height:850px',
+         plotOutput('aster', ))),
      
     tabPanel('Paths', value='paths', 
       includeHTML('tree_body.html')),
     
     tabPanel('Calculate', value='configure',
-             uiOutput('sel_scenario_dir'), # generates dir_conf              
-             verbatimTextOutput(outputId="txt_conf_summary"),
+      p('Scenario path exists:', verbatimTextOutput(outputId='dir_scenario_exists')),
+      conditionalPanel(condition='output.dir_scenario_exists == "FALSE"',
+        textInput('dir_scenario', 'Scenario directory to output (default)', value=dir_scenario),
+        actionButton('btn_write','Write to disk')),
+      conditionalPanel(condition='output.dir_scenario_exists == "TRUE"',
+             #uiOutput('sel_scenario_dir'), # generates dir_conf              
+             #verbatimTextOutput(outputId="txt_conf_summary"),
+             p('Scenario path', verbatimTextOutput(outputId="show_dir_scenario")),
              actionButton('btn_calc','Calculate'),
-             verbatimTextOutput(outputId="txt_calc_summary")),
+             verbatimTextOutput(outputId="txt_calc_summary"))),
              
     tabPanel('Report', value='report', 
              uiOutput('sel_compare'), # generates dir_conf              

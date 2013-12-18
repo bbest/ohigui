@@ -1,6 +1,6 @@
 Package: ohigui
-Version: 0.9.13
-Date: 2013-06-15
+Version: 0.1
+Date: 2013-12-17
 Title: Ocean Health Index - Graphical User Interface
 Author: Ben Best <bbest@nceas.ucsb.edu>, with past contributions from Darren
     Hardy <drh@stanford.edu>
@@ -16,10 +16,10 @@ Imports:
     plyr (>= 1.8),
     RColorBrewer (>= 1.0),
     RJSONIO (>= 1.0),
-    reshape (>= 0.8),
     reshape2 (>= 1.2),
-    shiny (>= 0.6.0),
-    utils (>= 3.0)
+    shiny (>= 0.8.0),
+    utils (>= 3.0),
+    ohicore (>= 0.1)
 Description: ohigui is an interface through the web browser for exploring and
     calculating the Ocean Health Index.
 License: MIT
@@ -39,5 +39,4 @@ Collate:
     'ohi-vars.R'
     'ohi.extras.R'
     'AggregateLayers.R'
-    'scoring.R'
     'ohi.nature2012.R'

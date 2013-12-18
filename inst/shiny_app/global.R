@@ -4,11 +4,11 @@ options(error=NULL)
 # see launchApp(), makes global variables: conf, layers, scores, dir_shapes, dir_scenario
 
 # get data
-getMapData = function(var_data){ 
-  brks = with(var_data, seq(min(val_num, na.rm=T),
+getMapData = function(v){ 
+  brks = with(v$data, seq(min(val_num, na.rm=T),
                               max(val_num, na.rm=T), length.out=8))
   colors = brewer.pal(length(brks)-1, 'Spectral')
-  regions = plyr::dlply(var_data, 'rgn_id', function(x) {
+  regions = plyr::dlply(v$data, 'rgn_id', function(x) {
     return(list(val_num = x$val_num,
                 color   = cut(x$val_num, breaks=brks, labels=colors, include.lowest=TRUE)))
   })                        
@@ -17,9 +17,9 @@ getMapData = function(var_data){
 }
 
 # plot map
-plotMap = function(var, var_data, width=1200, height=800){  
+plotMap = function(v, width=1200, height=800){  
   
-  d = getMapData(var_data)
+  d = getMapData(v)
   
   lmap <- Leaflet$new()
   lmap$mapOpts(worldCopyJump = TRUE)
@@ -111,7 +111,7 @@ plotMap = function(var, var_data, width=1200, height=800){
           }
         }
   	  });
-      } !#", var))
+      } !#", v$name))
   lmap$legend(position = 'bottomright', 
               colors   =  names(d$legend), 
               labels   =  as.vector(d$legend))

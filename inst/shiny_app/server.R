@@ -1,5 +1,8 @@
 # see global.R
 
+rgn_names = rbind(rename(SelectLayersData(layers, layers=conf$config$layer_region_labels, narrow=T), c('id_num'='rgn_id', 'val_chr'='rgn_name')),
+                  data.frame(rgn_id=0, rgn_name='GLOBAL'))
+
 # get goals for aster, all and specific to weights
 goals.all = conf$goals # read.csv(goals.csv)
 goals.all = goals.all[order(goals.all$order), 'goal']
@@ -40,6 +43,7 @@ values = reactiveValues()
 dir_scenarios = dirname(dir_scenario)
 values$dirs_scenario <- grep('^scenario\\.', list.dirs(path=dir_scenarios, recursive=F), value=T)
 
+
 # shinyServer ----
 # Define server logic required to summarize and view the selected dataset
 shinyServer(function(input, output, session) {
@@ -51,27 +55,48 @@ shinyServer(function(input, output, session) {
     values$dirs_scenario <- grep('^[^\\.]', basename(list.dirs(path=dir_scenarios, recursive=F)), value=T)
   })
   
-  # Layers: get_var_data() ----
-  get_var_data <- reactive({
-    plyr::rename(ohicore::SelectLayersData(layers, layers=input$var, narrow=T), c('id_num'='rgn_id'))
+  # Layers: get_var() ----
+  get_var <- reactive({
+    v = list()
+    if (input$varType == 'Layer'){
+      v$name = input$varLayer
+      v$data = plyr::rename(ohicore::SelectLayersData(layers, layers=input$varLayer, narrow=T), c('id_num'='rgn_id'))
+    } else if (input$varType == 'Score') {
+      v$name = input$varScore
+      attr(v$name, 'goal') = strsplit(v$name, ' - ')[[1]][1]
+      attr(v$name, 'dimension') = strsplit(v$name, ' - ')[[1]][2]
+      v$data = plyr::rename(subset(scores, goal==attr(v$name, 'goal') & dimension==attr(v$name, 'dimension'), c(region_id, score)), c('region_id'='rgn_id', 'score'='val_num'))
+    }
+    return(v)
   })
   
   # Layers: map ----
   output$map_container <- renderMap({
-    plotMap(var=input$var, var_data=get_var_data())
+      plotMap(v=get_var())
     }, html_sub = c('"features": "#! regions !#",' = '"features": regions,'))
+  
+  output$txt_var_info = renderPrint({
+    v = get_var()
+    cat(sprintf('%s\n\n  min: %s\n  mean: %s\n  max: %s\n\n', v$name, min(v$data$val_num, na.rm=T), mean(v$data$val_num, na.rm=T), max(v$data$val_num, na.rm=T)))
+    if (input$varType=='Layer'){
+      m = subset(layers$meta, layer==input$varLayer)      
+      #m = subset(layers$meta, layer=='alien_species', drop=T)
+      for (f in names(m)){
+        cat(sprintf('%s: %s\n', f, as.character(m[[f]])))
+      }
+    }
+  })  
   
   # Layers: histogram ----
   output$histogram <- renderPlot({
     library(ggplot2)
     
     # get input data
-    d = get_var_data()
-    input_var = input$var
-    bin.width = diff(range(d[,'val_num']))/30
+    v = get_var()
+    bin.width = diff(range(v$data[,'val_num'], na.rm=T))/30
     
     # Histogram overlaid with kernel density curve
-    p = ggplot(d, aes(x=val_num))
+    p = ggplot(na.omit(v$data), aes(x=val_num))
     p = p + geom_histogram(aes(y=..density..),      # Histogram with density instead of count on y-axis
                            binwidth=bin.width,
                            colour="black", fill="white") +
@@ -79,20 +104,21 @@ shinyServer(function(input, output, session) {
     print(p)
   })  
   
-  # Layers: summary ----
-  output$summary <- renderPrint({
-    summary(get_var_data()[,'val_num'], digits=3)
-  })
+#   # Layers: summary ----
+#   output$summary <- renderPrint({
+#     summary(get_var()$data[,'val_num'], digits=3)
+#   })
   
   # Layers: table ----
-  output$table <- renderTable({
-    #flds = subset(layers_navigation, layer==input$var)[, c('id_num','id_chr','category','year','value_num','value_chr')]
-    d = layers$data[[input$var]]
-    d = d[,names(d)!='layer']
+  output$table <- renderDataTable({
+    #browser()
+    d = rename(get_var()$data, c('val_num'='value'))
+    
+    # HACK: assuming has rgn_id in layer
+    d = merge(d, rgn_names, all.x=T)
+    d = cbind(d[,c('rgn_id','rgn_name')], d[,!names(d) %in% c('layer','rgn_id','rgn_name'), drop=F])
     d
-    #flds = flds[, !is.na(flds), drop=F]
-    #ld = plyr::rename(get_var_data()[,names(flds)], setNames(flds, names(flds)))
-  }, include.rownames=F)
+  })
 
   # Goals: aster ----
   output$aster <- renderPlot(width=800, height=850, {
@@ -124,36 +150,100 @@ shinyServer(function(input, output, session) {
     
   })
   
-  # Calculate: sel_scenario_dir ----
-  output$sel_scenario_dir <- renderUI({
-    selectInput("dir_scenario", sprintf("Select scenario (from %s):", dir_scenarios), 
-                values$dirs_scenario, selected=basename(dir_scenario))
+  #output$dir_scenario_exists = file.exists(dir_scenario)
+  
+  # Calculate: write ----
+  output$show_dir_scenario = renderText({cat(dir_scenario)})
+  observe({
+    input$btn_write
+    output$dir_scenario_exists = renderText({file.exists(input$dir_scenario)})
+    output$show_dir_scenario   = renderText({input$dir_scenario})
+    if (input$btn_write == 0){
+      state_btn_write <<- 0
+      #output$dir_scenario_exists = as.character()
+    } else if (input$btn_write != state_btn_write){
+      #output$dir_scenario_exists = as.character(file.exists(dir_scenario))
+      isolate({
+        state_btn_write <<- input$btn_write
+        dir_scenario <<- input$dir_scenario
+        ohicore::WriteScenario(
+          scenario = list(
+            conf = conf, 
+            layers = layers, 
+            scores = scores,
+            shapes = dir_shapes,
+            dir    = dir_scenario))
+      })
+      # = file.exists(dir_scenario)
+    }
+    #browser()
   })
+
+#   # Calculate: sel_scenario_dir ----
+#   output$sel_scenario_dir <- renderUI({
+#     selectInput("dir_scenario", sprintf("Select scenario (from %s):", dir_scenarios), 
+#                 values$dirs_scenario, selected=basename(dir_scenario))
+#   })
    
-  # Calculate: txt_conf_summary ----
-  output$txt_conf_summary <- renderPrint({
-    cat('Scenario:', input$dir_scenario,'\n')
-    if (is.null(input$dir_scenario)){
-      config.R = file.path(dir_scenarios, 'conf','config.R')  
-    } else {
-      config.R = file.path(dir_scenarios, input$dir_scenario, 'conf','config.R')  
-    }    
-    #config.check(config.R)
-    #config.summary(config.R)
-  })
+#   # Calculate: txt_conf_summary ----
+#   output$txt_conf_summary <- renderPrint({
+#     cat('Scenario:', input$dir_scenario,'\n')
+#     if (is.null(input$dir_scenario)){
+#       config.R = file.path(dir_scenarios, 'conf','config.R')  
+#     } else {
+#       config.R = file.path(dir_scenarios, input$dir_scenario, 'conf','config.R')  
+#     }    
+#     #config.check(config.R)
+#     #config.summary(config.R)
+#   })
    
    # Calculate: txt_calc_summary ----
-   output$txt_calc_summary <- renderText({
-     #cat('input$btn_conf_calc:',input$btn_conf_calc,'\n')
-     
-     if (input$btn_calc == 0 & length(input$dir_scenario)>0){
-       return('')
-     } else {
-       # outiside if and inside isolat()?
-       return(c('Scenario:',input$dir_scenario,'\n',
-                'TODO: integrate with execution of sequence of functions and display calculated summary.\n'))     
-     }
-   })
+    observe({
+      input$btn_calc      
+      if (input$btn_calc == 0){
+        state_btn_calc <<- 0
+        output$txt_calc_summary <- renderText({''})
+      } else if (input$btn_calc != state_btn_calc){
+        isolate({
+          state_btn_calc <<- input$btn_calc
+          output$txt_calc_summary <- renderText({
+            
+            # TODO: hardcoded for now, in future source scenario.R
+            CheckLayers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'), c('rgn_id','cntry_key','saup_id'))
+            
+            source(file.path(dir_scenario, 'scenario.R'))
+            layers <<- scenario$layers
+            conf   <<- scenario$conf
+            
+            #wd = "/Users/bbest/myohi/scenario.Global2013.www2013"
+            #conf   = Conf(file.path(wd, "conf"))
+            #CheckLayers(file.path(wd, 'layers.csv'), file.path(wd, 'layers'), c('rgn_id','cntry_key','saup_id'))
+            #layers = Layers(file.path(wd, "layers.csv"), file.path(wd, "layers"))
+            #scores = CalculateAll(scenario$conf, scenario$layers, debug=F)
+
+            scores <<- ohicore::CalculateAll(scenario$conf, scenario$layers, debug=F)
+            write.csv(scores, file.path(dir_scenario, 'scores.csv'), na='', row.names=F)
+            sprintf('Scores calculated and output to: %s', file.path(dir_scenario, 'scores.csv'))
+          })
+        })
+        
+      }
+    })  
+
+#    output$txt_calc_summary <- renderText({
+#      #cat('input$btn_conf_calc:',input$btn_conf_calc,'\n')
+#      
+#      if (input$btn_calc == 0 & length(input$dir_scenario)>0){
+#        return('')
+#        btn_calc_counter <<- 0
+#      } else {
+#        btn_calc_counter = btn_calc_counter + 1
+#        # outiside if and inside isolat()?
+#        return(c('Scenario:',input$dir_scenario,'\n',
+#                 'btn_calc_counter:',as.character(btn_calc_counter),
+#                 'TODO: integrate with execution of sequence of functions and display calculated summary.\n'))     
+#      }
+#    })
   
   # Report: sel_compare ----
   output$sel_compare <- renderUI({
