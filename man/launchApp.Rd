@@ -2,7 +2,7 @@
 \alias{launchApp}
 \title{Launch the browser application}
 \usage{
-  launchApp(scenario = list(conf = ohicore::conf.Global2013.www2013, layers = ohicore::layers.Global2013.www2013, scores = ohicore::scores.Global2013.www2013, shapes = system.file("inst/extdata/shapes.www2013", package = "ohicore"), dir = path.expand("~/myohi/scenario.Global2013.www2013")),
+  launchApp(scenario = list(conf = ohicore::conf.Global2013.www2013, layers = ohicore::layers.Global2013.www2013, scores = ohicore::scores.Global2013.www2013, shapes = system.file("extdata/shapes.www2013", package = "ohicore"), dir = path.expand("~/myohi/scenario.Global2013.www2013")),
     ...)
 }
 \arguments{

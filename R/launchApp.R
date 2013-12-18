@@ -15,6 +15,7 @@
 #' scores = scores.Global2013.www2013
 #' launchApp(conf.Global2013.www2013, layers, scores)
 #' }
+#' @import ohicore
 #' @export
 launchApp = function(scenario = list(conf   = ohicore::conf.Global2013.www2013, 
                                      layers = ohicore::layers.Global2013.www2013, 
