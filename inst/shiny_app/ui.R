@@ -22,7 +22,7 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
   div(class= "row-fluid", customHeaderPanel("OHI App")), # alternate to: headerPanel  
   div(class = "row-fluid", tabsetPanel(id='tabsetFunction',    # alternate to: mainPanel                                                                             
     tabPanel('Data', value='data', conditionalPanel(condition="input.tabsetFunction == 'data'",
-      sidebarPanel(id='data-sidebar',
+      sidebarPanel(id='data-sidebar',                   
         selectInput(inputId='varType', label='Choose variable type:', choices=c('Score','Layer'), selected='Score'),
         conditionalPanel(condition="input.varType == 'Layer'",
           selectInput(inputId='varLayer', label='Choose layer:', choices=varLayers)),

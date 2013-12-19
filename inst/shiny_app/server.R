@@ -1,6 +1,6 @@
 # see global.R
 
-rgn_names = rbind(rename(SelectLayersData(layers, layers=conf$config$layer_region_labels, narrow=T), c('id_num'='rgn_id', 'val_chr'='rgn_name')),
+rgn_names = rbind(rename(SelectLayersData(layers, layers=conf$config$layer_region_labels, narrow=T), c('id_num'='rgn_id', 'val_chr'='rgn_name'))[,c('rgn_id','rgn_name')],
                   data.frame(rgn_id=0, rgn_name='GLOBAL'))
 
 # get goals for aster, all and specific to weights
@@ -111,7 +111,6 @@ shinyServer(function(input, output, session) {
   
   # Layers: table ----
   output$table <- renderDataTable({
-    #browser()
     d = rename(get_var()$data, c('val_num'='value'))
     
     # HACK: assuming has rgn_id in layer
@@ -176,7 +175,6 @@ shinyServer(function(input, output, session) {
       })
       # = file.exists(dir_scenario)
     }
-    #browser()
   })
 
 #   # Calculate: sel_scenario_dir ----
