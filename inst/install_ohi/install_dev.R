@@ -3,7 +3,7 @@ if (!require(devtools)){
   require(devtools)
 } 
 
-github.user = 'ohi-science'
+github.user = 'bbest'
 install_github('rCharts', github.user)
 install_github('ohicore', github.user)
 install_github('ohigui' , github.user)
