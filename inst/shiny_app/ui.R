@@ -28,7 +28,8 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
           selectInput(inputId='varLayer', label='Choose layer:', choices=varLayers)),
         conditionalPanel(condition="input.varType == 'Score'",
           selectInput(inputId='varScore', label='Choose goal - dimension:', choices=varScores, selected='Index - score')),
-        verbatimTextOutput(outputId="txt_var_info")),
+        p(textOutput('var_description')),
+        verbatimTextOutput(outputId="var_details")),
         # TODO: use Select2 combo boxes and search field, see https://github.com/mostly-harmless/select2shiny
                                                     
                                                     

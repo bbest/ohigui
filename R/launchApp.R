@@ -35,6 +35,11 @@ launchApp = function(scenario = list(conf   = ohicore::conf.Global2013.www2013,
   dir_shapes   <<- scenario$shapes
   dir_scenario <<- scenario$dir 
   
-  shiny::runApp(appDir=system.file('shiny_app', package='ohigui'), ...)
-  #shiny::runApp(appDir=system.file('inst/shiny_app', package='ohigui'), ...)
+  dir_app = system.file('shiny_app', package='ohigui')
+
+  # HACK: update paths for devtools load_all() mode
+  if (!file.exists(dir_app   )) dir_app    =   system.file('inst/shiny_app'             , package='ohigui')
+  if (!file.exists(dir_shapes)) dir_shapes <<- system.file('inst/extdata/shapes.www2013', package='ohicore')
+  
+  shiny::runApp(appDir=dir_app, ...)
 }

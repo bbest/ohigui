@@ -1,3 +1,4 @@
+# load_all('~/Code/ohicore'); load_all('~/Code/ohigui'); launchApp()
 require(shiny); require(RJSONIO); require(rCharts); require(RColorBrewer); require(ohicore); require(ohigui)
 options(stringsAsFactors = F)
 options(error=NULL)

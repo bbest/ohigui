@@ -59,33 +59,51 @@ shinyServer(function(input, output, session) {
   get_var <- reactive({
     v = list()
     if (input$varType == 'Layer'){
+      
       v$name = input$varLayer
+      
       v$data = plyr::rename(ohicore::SelectLayersData(layers, layers=input$varLayer, narrow=T), c('id_num'='rgn_id'))
+      
+      v$description = 'coming soon'
+      
+      v$details = ''
+      m = subset(layers$meta, layer==input$varLayer)      
+      for (f in names(m)){
+        v$details = paste0(v$details, sprintf('%s: %s\n', f, as.character(m[[f]])))
+      }
+      
+      
     } else if (input$varType == 'Score') {
+      
       v$name = input$varScore
-      attr(v$name, 'goal') = strsplit(v$name, ' - ')[[1]][1]
-      attr(v$name, 'dimension') = strsplit(v$name, ' - ')[[1]][2]
-      v$data = plyr::rename(subset(scores, goal==attr(v$name, 'goal') & dimension==attr(v$name, 'dimension'), c(region_id, score)), c('region_id'='rgn_id', 'score'='val_num'))
+      g = strsplit(v$name, ' - ')[[1]][1]
+      m = strsplit(v$name, ' - ')[[1]][2]
+      attr(v$name, 'goal') = g
+      attr(v$name, 'dimension') = m
+
+      v$data = plyr::rename(subset(scores, goal==g & dimension==m, c(region_id, score)), c('region_id'='rgn_id', 'score'='val_num'))
+      
+      v$description = paste(g,' : ',
+                            ifelse(g=='Index',
+                             'The overall Index represents the weighted average of all goal scores.',
+                             as.character(subset(conf$goals, goal == g, description, drop=T))))
+      v$details = ''      
     }
+    v$summary = sprintf('%s\n\n  min: %s\n  mean: %s\n  max: %s\n\n', v$name, min(v$data$val_num, na.rm=T), mean(v$data$val_num, na.rm=T), max(v$data$val_num, na.rm=T))
+    
     return(v)
   })
+
+  # Data: info
+  output$var_description = renderText({ get_var()$description })
   
-  # Layers: map ----
+  output$var_details = renderPrint({ v = get_var(); cat(v$summary, '\n\n', v$details) })
+  
+  # Data: Map ----
   output$map_container <- renderMap({
       plotMap(v=get_var())
     }, html_sub = c('"features": "#! regions !#",' = '"features": regions,'))
   
-  output$txt_var_info = renderPrint({
-    v = get_var()
-    cat(sprintf('%s\n\n  min: %s\n  mean: %s\n  max: %s\n\n', v$name, min(v$data$val_num, na.rm=T), mean(v$data$val_num, na.rm=T), max(v$data$val_num, na.rm=T)))
-    if (input$varType=='Layer'){
-      m = subset(layers$meta, layer==input$varLayer)      
-      #m = subset(layers$meta, layer=='alien_species', drop=T)
-      for (f in names(m)){
-        cat(sprintf('%s: %s\n', f, as.character(m[[f]])))
-      }
-    }
-  })  
   
   # Layers: histogram ----
   output$histogram <- renderPlot({
