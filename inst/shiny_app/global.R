@@ -8,13 +8,12 @@ options(error=NULL)
 # Data: select score ----
 sel_score_target_choices = c('0 Index'='Index', 
                              setNames(conf$goals$goal, 
-                                      sprintf('%g %s', conf$goals$order_hierarchy, conf$goals$name))); # print(names(varGoals))
+                                      sprintf('%g %s (%s)', conf$goals$order_hierarchy, conf$goals$name, conf$goals$goal))); # print(names(varGoals))
 sel_score_dimension_choices = as.vector(unique(scores$dimension))
 
 # Data: select layer ----
 
-# get layer_labels for dropdown, organized by target/goal
-# OLD: varLayers = as.character(sort(subset(layers$meta, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr), layer, drop=T)))
+# get unique layers. organized by target (index, goal), which allows for repeat of layer across multiple targets
 layer_targets = data.frame(target=character(0), layer=character(0))
 for (i in 1:length(layers$targets)){ # i=1
   targets = layers$targets[[i]]
@@ -31,37 +30,30 @@ layer_targets = merge(layer_targets,
                                    target_order  = c(       100 ,        101 ,     102), 
                                    target_parent = c(        NA ,         NA ,      NA), stringsAsFactors=F)),
                   all.x=T)
-layer_targets = merge(layer_targets, layers$meta, by='layer', all.x=T)  # rename(layers$meta[,c('layer','name','fld_id_num','fld_category','fld_year','fld_val_chr')], layers$meta, c('name'='layer_name')),
-#layer_targets = subset(layer_targets, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr))
-# OLD method: hierarchy with goals...
-# layer_targets = arrange(layer_targets, target_order, layer_name)
-# layer_targets = ddply(layer_targets, 'target_name', function(x){
-#   rbind(data.frame(label = ifelse(!is.na(x$target_parent[1]), 
-#                                   sprintf('. %s', toupper(x$target_name[1])), 
-#                                   toupper(x$target_name[1])),
-#                    value = NA, #x$layer[1],
-#                    order = x$target_order[1]),
-#         data.frame(label = ifelse(!is.na(x$target_parent   ), 
-#                                   sprintf('   - %s', x$layer_name), 
-#                                   sprintf(' - %s', x$layer_name)),
-#                    value = x$layer,
-#                    order = x$target_order + 0.01))
-# })
-layer_targets = arrange(layer_targets, target_order, name) # [,c('label','value')]
+layer_targets = arrange(merge(layer_targets, layers$meta, by='layer', all.x=T), target_order, name)
 layer_targets = within(layer_targets, {
   target_label = sprintf('%s %s', target_order, target_name)
   layer_label  = sprintf('%s (%s)', name, layer)
   }) # [,c('label','value')]
 
+# get unique layer targets
 sel_layer_target_choices = with(unique(layer_targets[,c('target','target_label')]), setNames(target, target_label))
-#sel_layer_choices = 
-#
-#get
-GetLayerChoices = function(layer_targets, layer_target_choice){
-  with(subset(layer_targets, target==layer_target_choice), 
-       setNames(layer, layer_label))
+
+# initialize layer variables
+lyr_df = subset(layer_targets, target==sel_layer_target_choices[[1]])
+sel_layer_choices = with(lyr_df, setNames(layer, layer_label))
+lyr_fld_category = lyr_df$fld_category
+if (is.na(lyr_fld_category)){
+  sel_layer_category_choices = NA
+} else {
+  sel_layer_category_choices = sort(as.character(unique(layers$data[[lyr_df$layer]][[lyr_fld_category]])))
 }
-#GetLayerChoices(layer_targets, input$sel_layer_target)
+lyr_fld_year = lyr_df$fld_year
+if (is.na(lyr_fld_year)){
+  sel_layer_year_choices = NA
+} else {
+  sel_layer_year_choices = sort(unique(layers$data[[lyr_df$layer]][[lyr_fld_year]]), decreasing=T)
+}
 
 # Layers: get_var() ----
 # reactiveValues ----
@@ -117,13 +109,14 @@ get_wts = function(input){
   return(wts)
 }
 
-captilize <- function(s) { # capitalize first letter
+capitalize <- function(s) { # capitalize first letter
   paste(toupper(substr(s, 1, 1)), substr(s, 2, nchar(s)), sep='')
 }
 
 
 # get data
-getMapData = function(v){ 
+GetMapData = function(v){
+  
   brks = with(v$data, seq(min(val_num, na.rm=T),
                               max(val_num, na.rm=T), length.out=8))
   colors = brewer.pal(length(brks)-1, 'Spectral')
@@ -136,9 +129,11 @@ getMapData = function(v){
 }
 
 # plot map
-plotMap = function(v, width=1200, height=800){  
+PlotMap = function(v, width=1200, height=800){  
   
-  d = getMapData(v)
+  if (length(na.omit(v$data$val_num))==0) stop('Sorry, no data available for the selection.')
+      
+  d = GetMapData(v)
   
   lmap <- Leaflet$new()
   lmap$mapOpts(worldCopyJump = TRUE)
@@ -230,7 +225,7 @@ plotMap = function(v, width=1200, height=800){
           }
         }
   	  });
-      } !#", v$name))
+      } !#", HTML(v$name)))
   lmap$legend(position = 'bottomright', 
               colors   =  names(d$legend), 
               labels   =  as.vector(d$legend))

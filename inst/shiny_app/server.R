@@ -4,58 +4,131 @@
 # values = reactiveValues()
 # dir_scenarios = dirname(dir_scenario)
 # values$dirs_scenario <- grep('^scenario\\.', list.dirs(path=dir_scenarios, recursive=F), value=T)
-
+#dirs_scenario = reactiveValues()
+#sel_layer_choices = reactiveValues()
+  
 # shinyServer ----
 # Define server logic required to summarize and view the selected dataset
 shinyServer(function(input, output, session) {
 
-  # Observe: values$dirs_scenarios ----
-  # monitor filesystem every 5 seconds for folders in dir.conf
-  
-  #dirs_scenario <- grep('^scenario\\.', list.dirs(path=dir_scenarios, recursive=F), value=T)
-  dirs_scenario = reactiveValues()
+  # scenario directories. monitor filesystem every 5 seconds for folders in dir.conf
   observe({
     invalidateLater(5 * 1000, session)  # 5 seconds, in milliseconds
-    dirs_scenario <- grep('^[^\\.]', basename(list.dirs(path=dir_scenarios, recursive=F)), value=T)
+    dirs_scenario <<- grep('^[^\\.]', basename(list.dirs(path=dir_scenarios, recursive=F)), value=T)
   })
   
-  # get drop-down data
-  layer_choices = reactiveValues()
+  # select layer ----
   observe({
-    layer_choices = with(subset(layer_targets, target==input$sel_layer_target), 
-                           setNames(layer, layer_label))
-    
-  })
-#       updateSelectInput(session, 'sel_layer', label='3. Choose LAYER!', 
-#                         choices=layer_choices, selected=ifelse(length(layer_choices)>0, names(layer_choices)[1], NULL))
-
+    sel_layer_choices = with(subset(layer_targets, target==input$sel_layer_target), 
+                             setNames(layer, layer_label))    
+    updateSelectInput(session, 'sel_layer', 
+                      label='3. Choose layer:', 
+                      choices=sel_layer_choices, 
+                      selected=ifelse(length(sel_layer_choices)>0, 
+                                      names(sel_layer_choices)[1], 
+                                      NULL))    
+  }, priority=1)
   
-  # Layers: get_var() ----
-  get_var <- reactive({
+  # select layer category ----
+  observe({
+    lyr = input$sel_layer
+    lyr_fld_category = subset(layers$meta, layer==lyr, fld_category, drop=T)
+    if (is.na(lyr_fld_category)){
+      sel_layer_category_choices = NA
+    } else {
+      d = layers$data[[lyr]]
+      sel_layer_category_choices = sort(as.character(unique(d[[lyr_fld_category]])))
+    }
+    updateSelectInput(session,  'sel_layer_category', 
+                      label    = sprintf('4. Choose %s category:', lyr_fld_category),  
+                      choices  = sel_layer_category_choices)
+  }, priority=2)
+  
+  # select layer year ----
+  observe({
+    # reactives
+    lyr          = input$sel_layer
+    lyr_category = input$sel_layer_category
+    
+    lyr_fld_year = subset(layers$meta, layer==lyr, fld_year, drop=T)
+    # TODO: with Layers > NP > rnky_np_harvest_relative, getting "Error in names(choices) <- choiceNames : attempt to set an attribute on NULL", should be fixed in future based on https://groups.google.com/forum/?pli=1#!topic/shiny-discuss/K7chwrMCvkU
+    if (is.na(lyr_fld_year)){
+      sel_layer_year_choices = NA
+    } else {
+      d = ohicore::SelectLayersData(layers, layers=lyr, narrow=T) # layers$data[[lyr]]            
+      if ('category' %in% names(d) && lyr_category != 'NA'){ # !is.na(input$sel_layer_category & input$sel_layer_category!='')){
+        d = subset(d, category==lyr_category)
+      }
+      sel_layer_year_choices = as.character(sort(unique(d$year), decreasing=T))
+    }
+    updateSelectInput(session,  'sel_layer_year', 
+                      label    = '5. Choose year:',  
+                      choices  = sel_layer_year_choices,
+                      selected = sel_layer_year_choices[1])
+  }, priority=3)
+  
+  # Layers: GetVar() ----
+  GetVar <- reactive({
     v = list()
-    if (input$varType == 'Layer'){      
-      v$name = input$sel_layer      
-      v$data = plyr::rename(ohicore::SelectLayersData(layers, layers=input$sel_layer, narrow=T), c('id_num'='rgn_id'))      
-      v$description = 'coming soon'      
+    if (input$sel_type == 'Layer'){
+      # reactives
+      lyr          = input$sel_layer
+      lyr_category = input$sel_layer_category
+      lyr_year     = suppressWarnings(as.integer(input$sel_layer_year))
+      lyr_target   = input$sel_layer_target
+      
+      # data and name
+      d = rename(ohicore::SelectLayersData(layers, layers=lyr, narrow=T), c('id_num'='rgn_id'))
+      
+      x = lyr_label = subset(layer_targets, layer==lyr & target==lyr_target, layer_label, drop=T)
+      if ('category' %in% names(d)){
+        if (!lyr_category %in% d$category){
+          lyr_category = sort(unique(d$category))[1]
+          updateSelectInput(session, 'sel_layer_category', selected=lyr_category)
+        }
+        d = subset(d, category==lyr_category)
+        x = sprintf('%s : %s', x, lyr_category)
+      }
+      
+      if ('year' %in% names(d)){
+        if (!lyr_year %in% na.omit(d$year)){
+          lyr_year = max(d$year, na.rm=T)
+        }
+        d = subset(d, year==lyr_year)
+        x = sprintf('%s : %s', x, as.character(lyr_year))
+      }
+      
+      v$data = d
+      v$name = x
+      
+      attr(v$name, 'target') = lyr_target
+      v$description = paste0('<b>',lyr_label,'</b>: <em>', 
+                             subset(layers$meta, layer==lyr, description, drop=T),
+                             '</em>')# 'layer description coming soon'      
       v$details = ''
       m = subset(layers$meta, layer==input$sel_layer)      
       for (f in names(m)){
-        v$details = paste0(v$details, sprintf('%s: %s\n', f, as.character(m[[f]])))
+        s = ifelse(is.numeric(m[[f]]), sprintf('%0.4g', m[[f]]), as.character(m[[f]]))
+        v$details = paste0(v$details, sprintf('%s: %s\n', f, s))
       }
-    } else if (input$varType == 'Score') {      
-      v$name = input$varScore
-      g = strsplit(v$name, ' - ')[[1]][1]
-      m = strsplit(v$name, ' - ')[[1]][2]
-      attr(v$name, 'goal') = g
+    } else if (input$sel_type == 'Score') {
+      # reactives
+      g = input$sel_score_target    # strsplit(v$name, ' - ')[[1]][1]
+      m = input$sel_score_dimension # strsplit(v$name, ' - ')[[1]][2]
+        
+      v$name = sprintf('%s : %s', g, m)
+      attr(v$name, 'target') = g
       attr(v$name, 'dimension') = m
-      v$data = plyr::rename(subset(scores, goal==g & dimension==m, c(region_id, score)), c('region_id'='rgn_id', 'score'='val_num'))      
-      v$description = paste(g,' : ',
+      v$data = plyr::rename(subset(scores, goal==g & dimension==m, c(region_id, score)), c('region_id'='rgn_id', 'score'='val_num'))
+      v$description = paste0('<b>', names(sel_score_target_choices[sel_score_target_choices==g]),'</b>: <em>',
                             ifelse(g=='Index',
-                             'The overall Index represents the weighted average of all goal scores.',
-                             as.character(subset(conf$goals, goal == g, description, drop=T))))
+                                   conf$config$index_description,
+                                   as.character(subset(conf$goals, goal == g, description, drop=T))),
+                            '</em>\n<br>\n',
+                            '<b>', m,'</b>: <em>',conf$config$dimension_descriptions[[m]], '</em>')
       v$details = ''      
     }
-    v$summary = sprintf('%s\n\n  min: %s\n  mean: %s\n  max: %s\n\n', v$name, min(v$data$val_num, na.rm=T), mean(v$data$val_num, na.rm=T), max(v$data$val_num, na.rm=T))    
+    v$summary = sprintf('%s\n\n  count, not NA: %s\n  min: %0.4g\n  mean: %0.4g\n  max: %0.4g\n\n', v$name, length(na.omit(v$data$val_num)), signif(min(v$data$val_num, na.rm=T), 4), mean(v$data$val_num, na.rm=T), max(v$data$val_num, na.rm=T))    
     return(v)
   })
   
@@ -63,13 +136,13 @@ shinyServer(function(input, output, session) {
   
 
   # Data: info
-  output$var_description = renderText({ get_var()$description })
+  output$var_description = renderUI({ HTML(GetVar()$description) })
   
-  output$var_details = renderPrint({ v = get_var(); cat(v$summary, '\n\n', v$details) })
+  output$var_details = renderPrint({ v = GetVar(); cat(v$summary, '\n\n', v$details) })
   
   # Data: Map ----
   output$map_container <- renderMap({
-      plotMap(v=get_var())
+      PlotMap(v=GetVar())
     }, html_sub = c('"features": "#! regions !#",' = '"features": regions,'))
   
   
@@ -78,7 +151,7 @@ shinyServer(function(input, output, session) {
     library(ggplot2)
     
     # get input data
-    v = get_var()
+    v = GetVar()
     bin.width = diff(range(v$data[,'val_num'], na.rm=T))/30
     
     # Histogram overlaid with kernel density curve
@@ -90,14 +163,9 @@ shinyServer(function(input, output, session) {
     print(p)
   })  
   
-#   # Layers: summary ----
-#   output$summary <- renderPrint({
-#     summary(get_var()$data[,'val_num'], digits=3)
-#   })
-  
   # Layers: table ----
   output$table <- renderDataTable({
-    d = rename(get_var()$data, c('val_num'='value'))
+    d = rename(GetVar()$data, c('val_num'='value'))
     
     # HACK: assuming has rgn_id in layer
     d = merge(d, rgn_names, all.x=T)
@@ -134,8 +202,6 @@ shinyServer(function(input, output, session) {
           cex.main=2.5)
     
   })
-  
-  #output$dir_scenario_exists = file.exists(dir_scenario)
   
   # Calculate: write ----
   output$show_dir_scenario = renderText({cat(dir_scenario)})
@@ -196,15 +262,10 @@ shinyServer(function(input, output, session) {
             CheckLayers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'), c('rgn_id','cntry_key','saup_id'))
             
             source(file.path(dir_scenario, 'scenario.R'))
+#  CheckLayers(file.path(wd, 'layers.csv'), file.path(wd, 'layers'), c('rgn_id','cntry_key','saup_id'))
             layers <<- scenario$layers
             conf   <<- scenario$conf
             
-            #wd = "/Users/bbest/myohi/scenario.Global2013.www2013"
-            #conf   = Conf(file.path(wd, "conf"))
-            #CheckLayers(file.path(wd, 'layers.csv'), file.path(wd, 'layers'), c('rgn_id','cntry_key','saup_id'))
-            #layers = Layers(file.path(wd, "layers.csv"), file.path(wd, "layers"))
-            #scores = CalculateAll(scenario$conf, scenario$layers, debug=F)
-
             scores <<- ohicore::CalculateAll(scenario$conf, scenario$layers, debug=F)
             write.csv(scores, file.path(dir_scenario, 'scores.csv'), na='', row.names=F)
             sprintf('Scores calculated and output to: %s', file.path(dir_scenario, 'scores.csv'))
@@ -231,8 +292,9 @@ shinyServer(function(input, output, session) {
   
   # Report: sel_compare ----
   output$sel_compare <- renderUI({
-    selectInput("dir_compare", "Compare with scenario:", 
-                c('[None]',setdiff(dirs_scenario, basename(dir_scenarios))), 
+    browser()
+    selectInput("dir_compare", "Compare with scenario:",                 
+                c('[None]',setdiff(dirs_scenario, basename(dir_scenario))), 
                 selected='[None]')
   })
   

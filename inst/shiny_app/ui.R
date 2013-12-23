@@ -9,23 +9,47 @@ customHeaderPanel <- function(title,windowTitle=title){
       
 #---- define ui
 shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: pageWithSidebar
+                          
+  # Put this script in the header, and use the HTML() function to make
+  # sure that characters like '<' don't get escaped.
+  tags$head(tags$script(HTML('
+    Shiny.addCustomMessageHandler("layer_fld_category",
+      function(message) {
+        alert(JSON.stringify(message));
+      }
+    );
+  '))),
+                          
   div(class= "row-fluid", customHeaderPanel("OHI App")), # alternate to: headerPanel  
   div(class = "row-fluid", tabsetPanel(id='tabsetFunction',    # alternate to: mainPanel                                                                             
     tabPanel('Data', value='data', conditionalPanel(condition="input.tabsetFunction == 'data'",
       sidebarPanel(id='data-sidebar',                   
-        selectInput(inputId='varType', label='1. Choose variable type:', choices=c('Input Layer'='Layer', 'Output Score'='Score'), selected='Input Layer'),
-        conditionalPanel(condition="input.varType == 'Layer'",
-          selectInput(inputId='sel_layer_target' , label='2. Choose target (goal, pressures, resilience or spatial):', 
-                      choices=sel_layer_target_choices), #, selected=names(sel_layer_target_choices)[1]),
-          selectInput(inputId='sel_layer', label='3. Choose layer:', choices=GetLayerChoices(layer_targets, input$sel_layer_target) )),          
-        conditionalPanel(condition="input.varType == 'Score'",
-          #selectInput(inputId='varScore'    , label='Choose goal-dimension:', choices=varScores, selected='Index - score'),
-          selectInput(inputId='sel_score_target'   , label='2. Choose target (index or goal):' , choices=sel_score_target_choices   , selected='Index'),        
-          selectInput(inputId='sel_score_dimension', label='3. Choose dimension:'              , choices=sel_score_dimension_choices, selected='score')),
-        p(textOutput('var_description')),
+        selectInput('sel_type', label='1. Choose variable type:', choices=c('Input Layer'='Layer', 'Output Score'='Score'), selected='Output Score'),
+        conditionalPanel("input.sel_type == 'Layer'",
+          selectInput('sel_layer_target' , 
+                      label    = '2. Choose target (goal, pressures, resilience or spatial):',
+                      selected = names(sel_layer_target_choices)[1],
+                      choices  = sel_layer_target_choices),
+          selectInput('sel_layer', 
+                      label    = '3. Choose layer:',
+                      selected = names(sel_layer_choices)[1],
+                      choices  = sel_layer_choices),
+          conditionalPanel("input.sel_layer_category != 'NA'",
+            selectInput('sel_layer_category', 
+                        label    = '4. Choose category:', 
+                        choices  = sel_layer_category_choices, 
+                        selected = sel_layer_category_choices[1])),
+          conditionalPanel("input.sel_layer_year != 'NA'",
+            selectInput('sel_layer_year', 
+                        label    = '5. Choose year:', 
+                        choices  = sel_layer_year_choices, 
+                        selected = sel_layer_year_choices[1]))),          
+        conditionalPanel("input.sel_type == 'Score'",
+          selectInput('sel_score_target'   , label='2. Choose target (index or goal):' , choices=sel_score_target_choices   , selected='Index'),        
+          selectInput('sel_score_dimension', label='3. Choose dimension:'              , choices=sel_score_dimension_choices, selected='score')),              
+        p(htmlOutput('var_description')),
         verbatimTextOutput(outputId="var_details")),
-        # TODO: use Select2 combo boxes and search field, see https://github.com/mostly-harmless/select2shiny
-                                                    
+        # TODO: use Select2 combo boxes and search field, see https://github.com/mostly-harmless/select2shiny                                                    
                                                     
       mainPanel(id='data-main',
         tabsetPanel(id='tabsetMap',
