@@ -1,21 +1,11 @@
 # see global.R
 
-# get list of layers
-varLayers = as.character(sort(subset(layers$meta, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr), layer, drop=T)))
-varScores = as.vector(apply(unique(scores[,c('goal','dimension')]), 1, function(x) sprintf('%s - %s', x[1], x[2])))
-
-# add dir for regions
-addResourcePath('shapes', path.expand(dir_shapes))
-
-# defaults
-smax = 1 # max for goals slider inputs
-
 #---- customize for leaflet map
 customHeaderPanel <- function(title,windowTitle=title){
   tagList(tags$head(
     tags$title(windowTitle),
     tags$link(rel="stylesheet", type="text/css", href="/css/tree.css"),
-    tags$script(src='shapes/regions_gcs.js')))}      # assume regions geojson variable set by shapes/regions_gcs.js
+    tags$script(src='spatial/regions_gcs.js')))}      # assume regions geojson variable set by spatial/regions_gcs.js
       
 #---- define ui
 shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: pageWithSidebar
@@ -23,11 +13,15 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
   div(class = "row-fluid", tabsetPanel(id='tabsetFunction',    # alternate to: mainPanel                                                                             
     tabPanel('Data', value='data', conditionalPanel(condition="input.tabsetFunction == 'data'",
       sidebarPanel(id='data-sidebar',                   
-        selectInput(inputId='varType', label='Choose variable type:', choices=c('Score','Layer'), selected='Score'),
+        selectInput(inputId='varType', label='1. Choose variable type:', choices=c('Input Layer'='Layer', 'Output Score'='Score'), selected='Input Layer'),
         conditionalPanel(condition="input.varType == 'Layer'",
-          selectInput(inputId='varLayer', label='Choose layer:', choices=varLayers)),
+          selectInput(inputId='sel_layer_target' , label='2. Choose target (goal, pressures, resilience or spatial):', 
+                      choices=sel_layer_target_choices), #, selected=names(sel_layer_target_choices)[1]),
+          selectInput(inputId='sel_layer', label='3. Choose layer:', choices=GetLayerChoices(layer_targets, input$sel_layer_target) )),          
         conditionalPanel(condition="input.varType == 'Score'",
-          selectInput(inputId='varScore', label='Choose goal - dimension:', choices=varScores, selected='Index - score')),
+          #selectInput(inputId='varScore'    , label='Choose goal-dimension:', choices=varScores, selected='Index - score'),
+          selectInput(inputId='sel_score_target'   , label='2. Choose target (index or goal):' , choices=sel_score_target_choices   , selected='Index'),        
+          selectInput(inputId='sel_score_dimension', label='3. Choose dimension:'              , choices=sel_score_dimension_choices, selected='score')),
         p(textOutput('var_description')),
         verbatimTextOutput(outputId="var_details")),
         # TODO: use Select2 combo boxes and search field, see https://github.com/mostly-harmless/select2shiny
@@ -41,9 +35,9 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
           tabPanel('Table',     value='data-table',     dataTableOutput('table'), style='overflow:auto; height:850px'))))),
                                        
     tabPanel('Goals', value='goals', 
-       sidebarPanel(id='goal-sidbar', style='overflow:auto; height:850px',                     
+       sidebarPanel(id='goal-sidbar', style='overflow:auto; height:850px; width:200px',                     
         strong('Food Provision:'),
-          sliderInput("MAR","Mariculture:"                 , min=0, max=smax, value=0.5, step=0.1),
+          sliderInput("MAR","Mariculture:"                 , min=0, max=smax, value=0.5, step=0.1),br(),
           sliderInput("FIS","Fisheries:"                   , min=0, max=smax, value=0.5, step=0.1),br(),     
         sliderInput("AO",strong("Artisanal Opportunity:")  , min=0, max=smax, value=1, step=0.1),br(),
         sliderInput("NP",strong("Natural Products:")       , min=0, max=smax, value=1, step=0.1),br(),

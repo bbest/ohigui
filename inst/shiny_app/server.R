@@ -1,48 +1,9 @@
 # see global.R
 
-rgn_names = rbind(rename(SelectLayersData(layers, layers=conf$config$layer_region_labels, narrow=T), c('id_num'='rgn_id', 'val_chr'='rgn_name'))[,c('rgn_id','rgn_name')],
-                  data.frame(rgn_id=0, rgn_name='GLOBAL'))
-
-# get goals for aster, all and specific to weights
-goals.all = conf$goals # read.csv(goals.csv)
-goals.all = goals.all[order(goals.all$order), 'goal']
-
-# get colors for aster, based on 10 colors, but extended to all goals. subselect for goals.wts
-cols.goals.all = colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'), space='Lab')(length(goals.all))
-names(cols.goals.all) = goals.all
-
-# helper functions ----
-get_wts = function(input){
-  #return rescaled goal weights so sums to 1
-  wts = c(MAR=input$MAR,
-          FIS=input$FIS,    
-          AO=input$AO,
-          NP=input$NP,
-          CS=input$CS,
-          CP=input$CP,
-          TR=input$TR,
-          LIV=input$LIV,
-          ECO=input$ECO,
-          ICO=input$ICO,
-          LSP=input$LSP,
-          CW=input$CW,
-          HAB=input$HAB,
-          SPP=input$SPP)
-
-  # rescale so sums to 1
-  wts = wts / sum(wts)
-  return(wts)
-}
-
-captilize <- function(s) { # capitalize first letter
-  paste(toupper(substr(s, 1, 1)), substr(s, 2, nchar(s)), sep='')
-}
-
-# reactiveValues ----
-values = reactiveValues()
-dir_scenarios = dirname(dir_scenario)
-values$dirs_scenario <- grep('^scenario\\.', list.dirs(path=dir_scenarios, recursive=F), value=T)
-
+# # reactiveValues ----
+# values = reactiveValues()
+# dir_scenarios = dirname(dir_scenario)
+# values$dirs_scenario <- grep('^scenario\\.', list.dirs(path=dir_scenarios, recursive=F), value=T)
 
 # shinyServer ----
 # Define server logic required to summarize and view the selected dataset
@@ -50,49 +11,56 @@ shinyServer(function(input, output, session) {
 
   # Observe: values$dirs_scenarios ----
   # monitor filesystem every 5 seconds for folders in dir.conf
+  
+  #dirs_scenario <- grep('^scenario\\.', list.dirs(path=dir_scenarios, recursive=F), value=T)
+  dirs_scenario = reactiveValues()
   observe({
     invalidateLater(5 * 1000, session)  # 5 seconds, in milliseconds
-    values$dirs_scenario <- grep('^[^\\.]', basename(list.dirs(path=dir_scenarios, recursive=F)), value=T)
+    dirs_scenario <- grep('^[^\\.]', basename(list.dirs(path=dir_scenarios, recursive=F)), value=T)
   })
+  
+  # get drop-down data
+  layer_choices = reactiveValues()
+  observe({
+    layer_choices = with(subset(layer_targets, target==input$sel_layer_target), 
+                           setNames(layer, layer_label))
+    
+  })
+#       updateSelectInput(session, 'sel_layer', label='3. Choose LAYER!', 
+#                         choices=layer_choices, selected=ifelse(length(layer_choices)>0, names(layer_choices)[1], NULL))
+
   
   # Layers: get_var() ----
   get_var <- reactive({
     v = list()
-    if (input$varType == 'Layer'){
-      
-      v$name = input$varLayer
-      
-      v$data = plyr::rename(ohicore::SelectLayersData(layers, layers=input$varLayer, narrow=T), c('id_num'='rgn_id'))
-      
-      v$description = 'coming soon'
-      
+    if (input$varType == 'Layer'){      
+      v$name = input$sel_layer      
+      v$data = plyr::rename(ohicore::SelectLayersData(layers, layers=input$sel_layer, narrow=T), c('id_num'='rgn_id'))      
+      v$description = 'coming soon'      
       v$details = ''
-      m = subset(layers$meta, layer==input$varLayer)      
+      m = subset(layers$meta, layer==input$sel_layer)      
       for (f in names(m)){
         v$details = paste0(v$details, sprintf('%s: %s\n', f, as.character(m[[f]])))
       }
-      
-      
-    } else if (input$varType == 'Score') {
-      
+    } else if (input$varType == 'Score') {      
       v$name = input$varScore
       g = strsplit(v$name, ' - ')[[1]][1]
       m = strsplit(v$name, ' - ')[[1]][2]
       attr(v$name, 'goal') = g
       attr(v$name, 'dimension') = m
-
-      v$data = plyr::rename(subset(scores, goal==g & dimension==m, c(region_id, score)), c('region_id'='rgn_id', 'score'='val_num'))
-      
+      v$data = plyr::rename(subset(scores, goal==g & dimension==m, c(region_id, score)), c('region_id'='rgn_id', 'score'='val_num'))      
       v$description = paste(g,' : ',
                             ifelse(g=='Index',
                              'The overall Index represents the weighted average of all goal scores.',
                              as.character(subset(conf$goals, goal == g, description, drop=T))))
       v$details = ''      
     }
-    v$summary = sprintf('%s\n\n  min: %s\n  mean: %s\n  max: %s\n\n', v$name, min(v$data$val_num, na.rm=T), mean(v$data$val_num, na.rm=T), max(v$data$val_num, na.rm=T))
-    
+    v$summary = sprintf('%s\n\n  min: %s\n  mean: %s\n  max: %s\n\n', v$name, min(v$data$val_num, na.rm=T), mean(v$data$val_num, na.rm=T), max(v$data$val_num, na.rm=T))    
     return(v)
   })
+  
+  
+  
 
   # Data: info
   output$var_description = renderText({ get_var()$description })
@@ -188,7 +156,7 @@ shinyServer(function(input, output, session) {
             conf = conf, 
             layers = layers, 
             scores = scores,
-            shapes = dir_shapes,
+            spatial = dir_spatial,
             dir    = dir_scenario))
       })
       # = file.exists(dir_scenario)
@@ -264,7 +232,7 @@ shinyServer(function(input, output, session) {
   # Report: sel_compare ----
   output$sel_compare <- renderUI({
     selectInput("dir_compare", "Compare with scenario:", 
-                c('[None]',setdiff(values$dirs_scenario, basename(dir_scenarios))), 
+                c('[None]',setdiff(dirs_scenario, basename(dir_scenarios))), 
                 selected='[None]')
   })
   

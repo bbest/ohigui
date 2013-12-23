@@ -1,8 +1,126 @@
+# see launchApp(), makes global variables: conf, layers, scores, dir_spatial, dir_scenario
+
 # load_all('~/Code/ohicore'); load_all('~/Code/ohigui'); launchApp()
 require(shiny); require(RJSONIO); require(rCharts); require(RColorBrewer); require(ohicore); require(ohigui)
 options(stringsAsFactors = F)
 options(error=NULL)
-# see launchApp(), makes global variables: conf, layers, scores, dir_shapes, dir_scenario
+
+# Data: select score ----
+sel_score_target_choices = c('0 Index'='Index', 
+                             setNames(conf$goals$goal, 
+                                      sprintf('%g %s', conf$goals$order_hierarchy, conf$goals$name))); # print(names(varGoals))
+sel_score_dimension_choices = as.vector(unique(scores$dimension))
+
+# Data: select layer ----
+
+# get layer_labels for dropdown, organized by target/goal
+# OLD: varLayers = as.character(sort(subset(layers$meta, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr), layer, drop=T)))
+layer_targets = data.frame(target=character(0), layer=character(0))
+for (i in 1:length(layers$targets)){ # i=1
+  targets = layers$targets[[i]]
+  layer   = names(layers$targets[i])
+  layer_targets = rbind(layer_targets, 
+                    data.frame(target = targets,
+                               layer = rep(layer, length(targets))))
+}
+layer_targets = merge(layer_targets,
+                  rbind(rename(conf$goals[,c('goal','name','order_hierarchy','parent')],
+                               c('goal'='target','name'='target_name','order_hierarchy'='target_order','parent'='target_parent')),
+                        data.frame(target        = c('pressures','resilience','spatial'),
+                                   target_name   = c('Pressures','Resilience','Spatial'),
+                                   target_order  = c(       100 ,        101 ,     102), 
+                                   target_parent = c(        NA ,         NA ,      NA), stringsAsFactors=F)),
+                  all.x=T)
+layer_targets = merge(layer_targets, layers$meta, by='layer', all.x=T)  # rename(layers$meta[,c('layer','name','fld_id_num','fld_category','fld_year','fld_val_chr')], layers$meta, c('name'='layer_name')),
+#layer_targets = subset(layer_targets, fld_id_num=='rgn_id' & is.na(fld_category)  & is.na(fld_year) & is.na(fld_val_chr))
+# OLD method: hierarchy with goals...
+# layer_targets = arrange(layer_targets, target_order, layer_name)
+# layer_targets = ddply(layer_targets, 'target_name', function(x){
+#   rbind(data.frame(label = ifelse(!is.na(x$target_parent[1]), 
+#                                   sprintf('. %s', toupper(x$target_name[1])), 
+#                                   toupper(x$target_name[1])),
+#                    value = NA, #x$layer[1],
+#                    order = x$target_order[1]),
+#         data.frame(label = ifelse(!is.na(x$target_parent   ), 
+#                                   sprintf('   - %s', x$layer_name), 
+#                                   sprintf(' - %s', x$layer_name)),
+#                    value = x$layer,
+#                    order = x$target_order + 0.01))
+# })
+layer_targets = arrange(layer_targets, target_order, name) # [,c('label','value')]
+layer_targets = within(layer_targets, {
+  target_label = sprintf('%s %s', target_order, target_name)
+  layer_label  = sprintf('%s (%s)', name, layer)
+  }) # [,c('label','value')]
+
+sel_layer_target_choices = with(unique(layer_targets[,c('target','target_label')]), setNames(target, target_label))
+#sel_layer_choices = 
+#
+#get
+GetLayerChoices = function(layer_targets, layer_target_choice){
+  with(subset(layer_targets, target==layer_target_choice), 
+       setNames(layer, layer_label))
+}
+#GetLayerChoices(layer_targets, input$sel_layer_target)
+
+# Layers: get_var() ----
+# reactiveValues ----
+dir_scenarios = dirname(dir_scenario)
+  
+# index or goal
+# conf$goals = within(arrange(
+#   conf$goals, order_hierarchy), {
+#     indented_label = ifelse(!is.na(parent), 
+#                             sprintf('. %s', name),
+#                             name)})
+# varGoals      = c('0. Index'='Index', setNames(conf$goals$goal, conf$goals$indented_label)); # print(names(varGoals))
+
+# 
+
+# add dir for regions
+addResourcePath('spatial', path.expand(dir_spatial))
+
+# defaults
+smax = 1 # max for goals slider inputs
+
+
+rgn_names = rbind(rename(SelectLayersData(layers, layers=conf$config$layer_region_labels, narrow=T), c('id_num'='rgn_id', 'val_chr'='rgn_name'))[,c('rgn_id','rgn_name')],
+                  data.frame(rgn_id=0, rgn_name='GLOBAL'))
+
+# get goals for aster, all and specific to weights
+goals.all = arrange(conf$goals, order_color)[['goal']]
+
+# get colors for aster, based on 10 colors, but extended to all goals. subselect for goals.wts
+cols.goals.all = colorRampPalette(RColorBrewer::brewer.pal(10, 'Spectral'), space='Lab')(length(goals.all))
+names(cols.goals.all) = goals.all
+
+# helper functions ----
+get_wts = function(input){
+  #return rescaled goal weights so sums to 1
+  wts = c(MAR=input$MAR,
+          FIS=input$FIS,    
+          AO=input$AO,
+          NP=input$NP,
+          CS=input$CS,
+          CP=input$CP,
+          TR=input$TR,
+          LIV=input$LIV,
+          ECO=input$ECO,
+          ICO=input$ICO,
+          LSP=input$LSP,
+          CW=input$CW,
+          HAB=input$HAB,
+          SPP=input$SPP)
+
+  # rescale so sums to 1
+  wts = wts / sum(wts)
+  return(wts)
+}
+
+captilize <- function(s) { # capitalize first letter
+  paste(toupper(substr(s, 1, 1)), substr(s, 2, nchar(s)), sep='')
+}
+
 
 # get data
 getMapData = function(v){ 
