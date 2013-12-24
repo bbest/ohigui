@@ -53,7 +53,7 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
                                                     
       mainPanel(id='data-main',
         tabsetPanel(id='tabsetMap',
-          tabPanel('Map',       value='data-map',       mapOutput('map_container')),                                       
+          tabPanel('Map',       value='data-map',       mapOutput('map_container'), style='overflow:auto; height:800px'),                                       
           tabPanel('Histogram', value='data-histogram', plotOutput('histogram')),
           #tabPanel('Summary',   value='data-summary',   verbatimTextOutput('summary')),                     
           tabPanel('Table',     value='data-table',     dataTableOutput('table'), style='overflow:auto; height:850px'))))),
