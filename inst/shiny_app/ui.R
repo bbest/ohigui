@@ -82,8 +82,8 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
        mainPanel(id='goal-main', style='overflow:auto; height:850px',
          plotOutput('aster', ))),
      
-    tabPanel('Paths', value='paths', 
-      includeHTML('tree_body.html')),
+#     tabPanel('Paths', value='paths', 
+#       includeHTML('tree_body.html')),
     
     tabPanel('Calculate', value='configure',
       p('Scenario path exists:', verbatimTextOutput(outputId='dir_scenario_exists')),
@@ -105,7 +105,7 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
              checkboxInput('ck_open_html'  , 'Open in new window', value = T),
              checkboxInput('ck_global_only', 'Global only (vs all regions which takes time)', value = T),
              checkboxInput('ck_overwrite'  , 'Overwrite existing figures', value = F),
-             br('Not yet implemented:'),
+             br('Not yet implemented...'),
              uiOutput('sel_compare'), # generates dir_conf              
              checkboxInput('ck_maps'       , 'Maps'      , value = F),
              checkboxInput('ck_histograms' , 'Histograms', value = F),
