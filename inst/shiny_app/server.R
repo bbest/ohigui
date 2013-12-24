@@ -262,7 +262,6 @@ shinyServer(function(input, output, session) {
             CheckLayers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'), c('rgn_id','cntry_key','saup_id'))
             
             source(file.path(dir_scenario, 'scenario.R'))
-#  CheckLayers(file.path(wd, 'layers.csv'), file.path(wd, 'layers'), c('rgn_id','cntry_key','saup_id'))
             layers <<- scenario$layers
             conf   <<- scenario$conf
             
@@ -274,6 +273,47 @@ shinyServer(function(input, output, session) {
         
       }
     })  
+  
+  # Report: sel_compare ----
+  output$sel_compare <- renderUI({
+    selectInput("dir_compare", "Compare with scenario:",                 
+                c('[None]',setdiff(dirs_scenario, basename(dir_scenario))), 
+                selected='[None]')
+  })
+  
+  # Report: btn_report ----
+    observe({
+      input$btn_report      
+      if (input$btn_report == 0){
+        state_btn_report <<- 0
+        output$txt_report_summary <- renderText({''})
+      } else if (input$btn_report != state_btn_report){
+        isolate({
+          state_btn_report <<- input$btn_report
+          ohicore::ReportScores(scenario = list(
+                      conf = conf, 
+                      layers = layers, 
+                      scores = scores,
+                      spatial = ifelse(file.exists(system.file('extdata/spatial.www2013', package='ohicore')),
+                                             system.file('extdata/spatial.www2013', package='ohicore'),
+                                             system.file('inst/extdata/spatial.www2013', package='ohicore'))),
+                      directory = file.path(dir_scenario,'reports'),
+                      filename = 'report_Global2013_www2013.html', 
+                      open_html=input$ck_open_html,
+                      do_flowers=input$ck_flowers, do_tables=input$ck_tables,
+                      overwrite=input$ck_overwrite, global_only=input$ck_global_only, 
+                      # TODO: implement...                         
+                      do_maps=input$ck_maps, do_histograms=input$ck_histograms, do_equations=input$ck_equations, do_paths=input$ck_paths, 
+                      debug=F) 
+          output$txt_report_summary <- renderText({
+            #browser()
+            cat('success')
+          })
+        })
+        
+      }
+    })  
+  
 
 #    output$txt_calc_summary <- renderText({
 #      #cat('input$btn_conf_calc:',input$btn_conf_calc,'\n')
@@ -290,13 +330,6 @@ shinyServer(function(input, output, session) {
 #      }
 #    })
   
-  # Report: sel_compare ----
-  output$sel_compare <- renderUI({
-    browser()
-    selectInput("dir_compare", "Compare with scenario:",                 
-                c('[None]',setdiff(dirs_scenario, basename(dir_scenario))), 
-                selected='[None]')
-  })
   
   
 })

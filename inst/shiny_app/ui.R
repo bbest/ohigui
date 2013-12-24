@@ -100,13 +100,23 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
     tabPanel('Report', value='report', 
              uiOutput('sel_compare'), # generates dir_conf              
              br('Include:'),
-             checkboxInput('ck_Equations' , 'Equations' , value = FALSE),
-             checkboxInput('ck_Flowers'   , 'Flowers'   , value = FALSE),
-             checkboxInput('ck_Histograms', 'Histograms', value = FALSE),
-             checkboxInput('ck_Maps'      , 'Maps'      , value = FALSE),
-             checkboxInput('ck_Paths'     , 'Paths'     , value = FALSE),
-             checkboxInput('ck_Tables'    , 'Tables'    , value = FALSE),
-             actionButton('btn_report','Generate Report')) 
+             checkboxInput('ck_flowers'    , 'Flowers'   , value = T),
+             checkboxInput('ck_tables'     , 'Tables'    , value = T),
+             br('Options:'),
+             checkboxInput('ck_open_html'  , 'Open in new window', value = T),
+             checkboxInput('ck_global_only', 'Global only (vs all regions which takes time)', value = T),
+             checkboxInput('ck_overwrite'  , 'Overwrite existing figures', value = F),
+             br('Not yet implemented:'),
+             checkboxInput('ck_maps'       , 'Maps'      , value = F),
+             checkboxInput('ck_histograms' , 'Histograms', value = F),
+             checkboxInput('ck_equations'  , 'Equations' , value = F),             
+             checkboxInput('ck_paths'      , 'Paths'     , value = F),             
+             conditionalPanel(condition='output.dir_scenario_exists == "TRUE"',
+               actionButton('btn_report','Generate Report'),
+               verbatimTextOutput(outputId="txt_report_summary")),
+             conditionalPanel(condition='output.dir_scenario_exists == "FALSE"',
+               p('You must write this scenario to the filesystem (see Calculate tab) before generating a report.')))
+             
   )) # end tabsetFunction
     
 )))
