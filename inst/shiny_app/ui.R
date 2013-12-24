@@ -98,7 +98,6 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
              verbatimTextOutput(outputId="txt_calc_summary"))),
              
     tabPanel('Report', value='report', 
-             uiOutput('sel_compare'), # generates dir_conf              
              br('Include:'),
              checkboxInput('ck_flowers'    , 'Flowers'   , value = T),
              checkboxInput('ck_tables'     , 'Tables'    , value = T),
@@ -107,6 +106,7 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
              checkboxInput('ck_global_only', 'Global only (vs all regions which takes time)', value = T),
              checkboxInput('ck_overwrite'  , 'Overwrite existing figures', value = F),
              br('Not yet implemented:'),
+             uiOutput('sel_compare'), # generates dir_conf              
              checkboxInput('ck_maps'       , 'Maps'      , value = F),
              checkboxInput('ck_histograms' , 'Histograms', value = F),
              checkboxInput('ck_equations'  , 'Equations' , value = F),             
