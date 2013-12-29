@@ -204,7 +204,7 @@ shinyServer(function(input, output, session) {
   })
   
   # Calculate: write ----
-  output$show_dir_scenario = renderText({cat(dir_scenario)})
+  output$show_dir_scenario = renderText({ cat(dir_scenario) })
   observe({
     input$btn_write
     output$dir_scenario_exists = renderText({file.exists(input$dir_scenario)})
@@ -248,7 +248,7 @@ shinyServer(function(input, output, session) {
 #   })
    
    # Calculate: txt_calc_summary ----
-    observe({
+    observe({      
       input$btn_calc      
       if (input$btn_calc == 0){
         state_btn_calc <<- 0
@@ -282,37 +282,38 @@ shinyServer(function(input, output, session) {
   })
   
   # Report: btn_report ----
-    observe({
-      input$btn_report      
-      if (input$btn_report == 0){
-        state_btn_report <<- 0
-        output$txt_report_summary <- renderText({''})
-      } else if (input$btn_report != state_btn_report){
-        isolate({
-          state_btn_report <<- input$btn_report
-          ohicore::ReportScores(scenario = list(
-                      conf = conf, 
-                      layers = layers, 
-                      scores = scores,
-                      spatial = ifelse(file.exists(system.file('extdata/spatial.www2013', package='ohicore')),
-                                             system.file('extdata/spatial.www2013', package='ohicore'),
-                                             system.file('inst/extdata/spatial.www2013', package='ohicore'))),
-                      directory = file.path(dir_scenario,'reports'),
-                      filename = 'report_Global2013_www2013.html', 
-                      open_html=input$ck_open_html,
-                      do_flowers=input$ck_flowers, do_tables=input$ck_tables,
-                      overwrite=input$ck_overwrite, global_only=input$ck_global_only, 
-                      # TODO: implement...                         
-                      do_maps=input$ck_maps, do_histograms=input$ck_histograms, do_equations=input$ck_equations, do_paths=input$ck_paths, 
-                      debug=F) 
-          output$txt_report_summary <- renderText({
-            #browser()
-            cat('success')
-          })
+  output$dir_reports  = renderText({ file.path(dir_scenario, 'reports') })
+  observe({      
+    input$btn_report      
+    if (input$btn_report == 0){
+      state_btn_report <<- 0
+      output$txt_report_summary <- renderText({''})
+    } else if (input$btn_report != state_btn_report){
+      isolate({
+        state_btn_report <<- input$btn_report
+        ohicore::ReportScores(scenario = list(
+                    conf = conf, 
+                    layers = layers, 
+                    scores = scores,
+                    spatial = ifelse(file.exists(system.file('extdata/spatial.www2013', package='ohicore')),
+                                           system.file('extdata/spatial.www2013', package='ohicore'),
+                                           system.file('inst/extdata/spatial.www2013', package='ohicore'))),
+                    directory = file.path(dir_scenario,'reports'),
+                    filename = input$txt_report_fn, 
+                    open_html=input$ck_open_html,
+                    do_flowers=input$ck_flowers, do_tables=input$ck_tables,
+                    overwrite=input$ck_overwrite, global_only=input$ck_global_only, 
+                    # TODO: implement...                         
+                    do_maps=input$ck_maps, do_histograms=input$ck_histograms, do_equations=input$ck_equations, do_paths=input$ck_paths, 
+                    debug=F) 
+        output$txt_report_summary <- renderText({
+          #browser()
+          cat('success')
         })
-        
-      }
-    })  
+      })
+      
+    }
+  })  
   
 
 #    output$txt_calc_summary <- renderText({
