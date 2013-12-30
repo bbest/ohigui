@@ -4,7 +4,7 @@
 customHeaderPanel <- function(title,windowTitle=title){
   tagList(tags$head(
     tags$title(windowTitle),
-    tags$link(rel="stylesheet", type="text/css", href="/css/tree.css"),
+    #tags$link(rel="stylesheet", type="text/css", href="/css/tree.css"),
     tags$script(src='spatial/regions_gcs.js')))}      # assume regions geojson variable set by spatial/regions_gcs.js
       
 #---- define ui
@@ -23,7 +23,7 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
   div(class= "row-fluid", customHeaderPanel("OHI App")), # alternate to: headerPanel  
   div(class = "row-fluid", tabsetPanel(id='tabsetFunction',    # alternate to: mainPanel                                                                             
     tabPanel('Data', value='data', conditionalPanel(condition="input.tabsetFunction == 'data'",
-      sidebarPanel(id='data-sidebar',                   
+      sidebarPanel(id='data-sidebar',
         selectInput('sel_type', label='1. Choose variable type:', choices=c('Input Layer'='Layer', 'Output Score'='Score'), selected='Output Score'),
         conditionalPanel("input.sel_type == 'Layer'",
           selectInput('sel_layer_target' , 
@@ -53,10 +53,10 @@ shinyUI(bootstrapPage(div(class='container-fluid',             # alternate to: p
                                                     
       mainPanel(id='data-main',
         tabsetPanel(id='tabsetMap',
-          tabPanel('Map',       value='data-map',       mapOutput('map_container'), style='overflow:auto; height:800px'),                                       
+          tabPanel('Map',       value='data-map', mapOutput('map_container')), 
           tabPanel('Histogram', value='data-histogram', plotOutput('histogram')),
           #tabPanel('Summary',   value='data-summary',   verbatimTextOutput('summary')),                     
-          tabPanel('Table',     value='data-table',     dataTableOutput('table'), style='overflow:auto; height:850px'))))),
+          tabPanel('Table',     value='data-table', dataTableOutput('table')))))),
                                        
     tabPanel('Goals', value='goals', 
        sidebarPanel(id='goal-sidbar', style='overflow:auto; height:850px; width:200px',                     

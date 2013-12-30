@@ -129,7 +129,7 @@ GetMapData = function(v){
 }
 
 # plot map
-PlotMap = function(v, width=1200, height=800){  
+PlotMap = function(v, width='100%', height='800px'){  
   
   if (length(na.omit(v$data$val_num))==0) stop('Sorry, no data available for the selection.')
       
@@ -138,7 +138,8 @@ PlotMap = function(v, width=1200, height=800){
   lmap <- Leaflet$new()
   lmap$mapOpts(worldCopyJump = TRUE)
   lmap$tileLayer(provide='Stamen.TonerLite')
-  lmap$set(width = width, height = height)
+  lmap$set(width=width, height=height)
+  lmap$fullScreen(T)
   lmap$setView(c(0, 0), zoom = 3)
   lmap$geoJson(
     "#! regions !#",

@@ -1,3 +1,5 @@
+# for latest, see: https://gist.github.com/bbest/8173863
+
 # Install dependencies
 if (!require(devtools)){
   install.packages('devtools')
