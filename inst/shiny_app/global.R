@@ -129,7 +129,7 @@ GetMapData = function(v){
 }
 
 # plot map
-PlotMap = function(v, width='100%', height='800px'){  
+PlotMap = function(v, width='100%', height='600px'){  
   
   if (length(na.omit(v$data$val_num))==0) stop('Sorry, no data available for the selection.')
       
