@@ -258,12 +258,11 @@ shinyServer(function(input, output, session) {
           state_btn_calc <<- input$btn_calc
           output$txt_calc_summary <- renderText({
             
-            # TODO: hardcoded for now, in future source scenario.R
-            CheckLayers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'), c('rgn_id','cntry_key','saup_id'))
-            
             source(file.path(dir_scenario, 'scenario.R'))
             layers <<- scenario$layers
             conf   <<- scenario$conf
+            
+            CheckLayers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'), conf$config$layers_id_fields)
             
             scores <<- ohicore::CalculateAll(scenario$conf, scenario$layers, debug=F)
             write.csv(scores, file.path(dir_scenario, 'scores.csv'), na='', row.names=F)
