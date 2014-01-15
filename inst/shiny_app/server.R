@@ -258,17 +258,22 @@ shinyServer(function(input, output, session) {
           state_btn_calc <<- input$btn_calc
           output$txt_calc_summary <- renderText({
             
-            sprintf('Reading %s\n', file.path(dir_scenario, 'scenario.R'))
+            cat(sprintf('Reading %s\n', file.path(dir_scenario, 'scenario.R')))
             source(file.path(dir_scenario, 'scenario.R'))
             layers <<- scenario$layers
             conf   <<- scenario$conf
             
-            sprintf('Checking layers: %s)\n  having conf/Config.R:layers_id_fields=', file.path(dir_scenario, 'layers.csv'),dput(conf$config$layers_id_fields))
-            sprintf('   layers: %s)\n', file.path(dir_scenario, 'layers.csv'))
-            CheckLayers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'), conf$config$layers_id_fields)
+            cat(sprintf('Checking layers: %s)\n  having conf/Config.R/layers_id_fields: %s', file.path(dir_scenario, 'layers.csv'),paste(conf$config$layers_id_fields, collapse=', ')))
+            cat(sprintf('   layers: %s)\n', file.path(dir_scenario, 'layers.csv')))
             
+            # check and reload layers
+            CheckLayers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'), conf$config$layers_id_fields)
+            scenario$layers = layers <<- ohicore::Layers(file.path(dir_scenario, 'layers.csv'), file.path(dir_scenario, 'layers'))            
+            
+            # calculate scores
             scores <<- ohicore::CalculateAll(scenario$conf, scenario$layers, debug=F)
             write.csv(scores, file.path(dir_scenario, 'scores.csv'), na='', row.names=F)
+            
             sprintf('Scores calculated and output to: %s', file.path(dir_scenario, 'scores.csv'))
           })
         })
