@@ -13,9 +13,8 @@ with the 5 value set (weighting combinations) scores per region.  \item
 \code{countries} is a list of country-level data to aggregate into regions.
 }}
 \description{
-  This data set contains the scores and model outputs from
-  the Ocean Health Index global study (Halpern et al.
-  2012).
+This data set contains the scores and model outputs from
+the Ocean Health Index global study (Halpern et al. 2012).
 }
 \examples{
 options(max.print=10)
@@ -49,20 +48,19 @@ subset(ohi.nature2012[['layers']][['data']],
        layer_id == 'i_cp_extent' & region_id == region_id)
 }
 \references{
-  Halpern, BS, C Longo, D Hardy, KL McLeod, JF Samhouri, SK
-  Katona, K Kleisner, SE Lester, J O'Leary, M Ranelletti,
-  AA Rosenberg, C Scarborough, LR Selig, BD Best, DR
-  Brumbaugh, FS Chapin III, LB Crowder, KL Daly, SC Doney,
-  C Elfes, MJ Fogarty, SD Gaines, K Jacobsen, LB Karrer, HM
-  Leslie, E Neeley, D Pauly, S Polasky, B Ris, K St.
-  Martin, GS Stone, UR Sumaila, and D Zeller. 2012.
-  \emph{An index to assess the health and benefits of the
-  global ocean}. \bold{Nature} 488, 615--620 (30 August
-  2012).
-  http://dx.doi.org/10.1038/nature11397doi:10.1038/nature11397.
+Halpern, BS, C Longo, D Hardy, KL McLeod, JF Samhouri, SK
+Katona, K Kleisner, SE Lester, J O'Leary, M Ranelletti, AA
+Rosenberg, C Scarborough, LR Selig, BD Best, DR Brumbaugh,
+FS Chapin III, LB Crowder, KL Daly, SC Doney, C Elfes, MJ
+Fogarty, SD Gaines, K Jacobsen, LB Karrer, HM Leslie, E
+Neeley, D Pauly, S Polasky, B Ris, K St. Martin, GS Stone,
+UR Sumaila, and D Zeller. 2012. \emph{An index to assess
+the health and benefits of the global ocean}. \bold{Nature}
+488, 615--620 (30 August 2012).
+http://dx.doi.org/10.1038/nature11397doi:10.1038/nature11397.
 }
 \seealso{
-  \href{http://ohi.nceas.ucsb.edu/data}{File archive}
+\href{http://ohi.nceas.ucsb.edu/data}{File archive}
 }
 \keyword{datasets}
 

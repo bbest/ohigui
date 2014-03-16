@@ -13,8 +13,7 @@
 \alias{ohi.write.csv}
 \title{Ocean Health Index: Data file format}
 \usage{
-  ohi.read.csv(file, na.strings = "", row.names = NULL,
-    ...)
+ohi.read.csv(file, na.strings = "", row.names = NULL, ...)
 }
 \arguments{
   \item{file}{Full path to input/output file.}
@@ -49,11 +48,11 @@
   load, save.}
 }
 \value{
-  Returns a data.frame with the input data.
+Returns a data.frame with the input data.
 }
 \description{
-  Simple read/write utility functions for the CSV and RData
-  data file format.
+Simple read/write utility functions for the CSV and RData
+data file format.
 }
 \examples{
 \dontrun{
@@ -69,7 +68,7 @@
 }
 }
 \seealso{
-  \code{\link{read.csv}}, \code{\link{write.csv}}
+\code{\link{read.csv}}, \code{\link{write.csv}}
 }
 \keyword{ohi}
 

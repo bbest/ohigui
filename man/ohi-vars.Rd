@@ -29,11 +29,11 @@ ohi.goal.subgoal.all the union of all goals and subgoals.  \item
 ohi.subgoal.parent is the list of subgoals and their parent goal.  \item
 \code{labels} is a list to map codes into text labels. }}
 \usage{
-  ohi.goal.all
+ohi.goal.all
 }
 \description{
-  Various variable constants for goals, dimensions, labels,
-  etc.
+Various variable constants for goals, dimensions, labels,
+etc.
 }
 \examples{
 ohi.labels[['AO']]

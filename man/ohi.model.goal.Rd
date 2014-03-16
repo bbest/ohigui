@@ -2,8 +2,8 @@
 \alias{ohi.model.goal}
 \title{Ocean Health Index: Goal Model}
 \usage{
-  ohi.model.goal(id, status, trend, resilience, pressure,
-    DISCOUNT = 1, BETA = 0.67, default.trend = 0)
+ohi.model.goal(id, status, trend, resilience, pressure, DISCOUNT = 1,
+  BETA = 0.67, default.trend = 0)
 }
 \arguments{
   \item{id}{Region identifiers.}
@@ -25,11 +25,11 @@
   region has NA.}
 }
 \value{
-  Returns a data.frame with the input data, and a likely
-  future status and OHI score.
+Returns a data.frame with the input data, and a likely
+future status and OHI score.
 }
 \description{
-  The goal model function.
+The goal model function.
 }
 \examples{
 \dontrun{
